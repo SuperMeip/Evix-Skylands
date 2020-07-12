@@ -87,11 +87,13 @@ namespace Evix.Terrain.Resolution {
 
                 return true;
               });
-
-              if (neighborsThatRequireThisChunkAreEmpty) {
+              
+              /// set mesh as empty if we don't need to load it
+              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock(resolution)) {
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, chunk is empty and has no dependent neighbors");
                 chunk.setMesh(default);
                 chunk.unlock(resolution);
+
                 return false;
               }
             }
