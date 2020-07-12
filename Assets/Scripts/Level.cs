@@ -1,3 +1,4 @@
+using Evix.Managers;
 using Evix.Terrain.Collections;
 using Evix.Terrain.Resolution;
 using System;
@@ -154,15 +155,24 @@ namespace Evix {
 			return lens;
 		}
 
-	#endregion
+		/// <summary>
+		/// Get the lens for the given focus
+		/// </summary>
+		/// <param name="focus"></param>
+		/// <returns></returns>
+    internal IFocusLens getLens(ILevelFocus focus) {
+			return focalLenses[focus];
+    }
 
-	#region Utility Functions
+    #endregion
 
-	/// <summary>
-	/// Do something for each focus and lens managing it
-	/// </summary>
-	/// <param name="action"></param>
-	public void forEachFocalLens(Action<IFocusLens, ILevelFocus> action) {
+    #region Utility Functions
+
+    /// <summary>
+    /// Do something for each focus and lens managing it
+    /// </summary>
+    /// <param name="action"></param>
+    public void forEachFocalLens(Action<IFocusLens, ILevelFocus> action) {
 			foreach (KeyValuePair<ILevelFocus, IFocusLens> focalLens in focalLenses) {
 				action(focalLens.Value, focalLens.Key);
 			}

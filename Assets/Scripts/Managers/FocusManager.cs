@@ -1,5 +1,6 @@
 ﻿using Evix.Terrain.Collections;
 using Evix.Terrain.Resolution;
+using Evix.Testing;
 using UnityEditor;
 using UnityEngine;
 
@@ -45,7 +46,10 @@ namespace Evix.Managers {
     /// <summary>
     /// The world (voxel) location of this player
     /// </summary>
-    Vector3 worldLocation;
+    public Vector3 worldLocation {
+      get;
+      private set;
+    }
 
     /// <summary>
     /// the previous world location of the character
@@ -127,20 +131,79 @@ namespace Evix.Managers {
     }
 
     #endregion
+
+    #region Unity Gizmos
+#if UNITY_EDITOR/// <summary>
+    /// Draw the managed Lens around this focus
+    /// </summary>
+    void OnDrawGizmos() {
+      // ignore gizmo if inactive
+      if (!isActive) {
+        return;
+      }
+
+      Level level = World.Current.activeLevel;
+      Vector3 worldChunkLocation = ((currentChunkID * Chunk.Diameter) + (Chunk.Diameter / 2)).vec3;
+
+      /// draw the chunk this focus is in
+      Gizmos.color = new Color(1.0f, 0.64f, 0.0f);
+      Gizmos.DrawWireCube(worldChunkLocation, new Vector3(Chunk.Diameter, Chunk.Diameter, Chunk.Diameter));
+      worldChunkLocation -= new Vector3((Chunk.Diameter / 2), (Chunk.Diameter / 2), (Chunk.Diameter / 2));
+
+      /// draw the active chunk area
+      if (level.getLens(this).tryToGetAperture(Chunk.Resolution.Visible, out IChunkResolutionAperture activeAperture)) {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube(worldChunkLocation, new Vector3(
+          activeAperture.managedChunkRadius * 2,
+          Mathf.Min(activeAperture.managedChunkHeightRadius * 2, level.chunkBounds.y),
+          activeAperture.managedChunkRadius * 2
+        ) * Chunk.Diameter);
+      }
+
+      /// draw the meshed chunk area
+      if (level.getLens(this).tryToGetAperture(Chunk.Resolution.Meshed, out IChunkResolutionAperture meshAperture)) {
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireCube(worldChunkLocation, new Vector3(
+          meshAperture.managedChunkRadius * 2,
+          Mathf.Min(meshAperture.managedChunkHeightRadius * 2, level.chunkBounds.y),
+          meshAperture.managedChunkRadius * 2
+        ) * Chunk.Diameter);
+      }
+
+      /// draw the meshed chunk area
+      if (level.getLens(this).tryToGetAperture(Chunk.Resolution.Loaded, out IChunkResolutionAperture loadedAperture)) {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(worldChunkLocation, new Vector3(
+          loadedAperture.managedChunkRadius * 2,
+          Mathf.Min(loadedAperture.managedChunkHeightRadius * 2, level.chunkBounds.y),
+          loadedAperture.managedChunkRadius * 2
+        ) * Chunk.Diameter);
+      }
+    }
+#endif
+    #endregion
   }
 
- #if UNITY_EDITOR
+#if UNITY_EDITOR
   /// <summary>
   /// Show off the chunk ID
   /// </summary>
   [CustomEditor(typeof(FocusManager))]
   class FocusCustomInspoector : Editor {
     public override void OnInspectorGUI() {
+      EditorGUILayout.LabelField("Focus Info:");
+
+      // Just info about the chunk
       EditorGUI.BeginDisabledGroup(true);
-      ILevelFocus focus = target as ILevelFocus;
-      EditorGUILayout.Vector3Field("Chunk ID", focus.currentChunkID.vec3);
+      FocusManager focus = target as FocusManager;
       EditorGUILayout.Toggle("Is Active", focus.isActive);
+      EditorGUILayout.Vector3Field("Chunk ID", focus.currentChunkID.vec3);
+      EditorGUILayout.Vector3Field("World Voxel Location", focus.worldLocation * World.BlockSize);
       EditorGUI.EndDisabledGroup();
+
+      if (GUILayout.Button("Print Current Chunk Edit History Log")) {
+        LevelDataTester.PrintChunkRecords(focus.currentChunkID);
+      }
       DrawDefaultInspector();
     }
   }
