@@ -23,7 +23,6 @@ namespace Evix.Terrain.Resolution {
     }
 
     internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
-      chunk = null;
       // if this is valid up to the meshed level, it's valid so far.
       if (base.isValid(adjustment, out chunk)) {
         if (adjustment.type == FocusAdjustmentType.InFocus) {

@@ -266,6 +266,7 @@ namespace Evix.Terrain.Collections {
     /// Remove the set chunk mesh from memmory
     /// </summary>
     public void clearMesh() {
+      recordEvent($"trying to clear the mesh");
       if (isLockedForWork && resolutionModificationLockType == Resolution.Meshed && currentResolution == Resolution.Meshed) {
         recordEvent($"Clearing chunk mesh");
         currentResolution = Resolution.Loaded;

@@ -292,11 +292,7 @@ namespace Evix.Terrain.MeshGeneration {
 					);
 				// if it's empty, record that and set the resolution to fully visible, because it's empty so it is visible
 				} else {
-					meshedChunk.recordEvent($"Mesh is empty, not reported to the level terrain manager. Updating to visible resolution");
-					if (meshedChunk.tryToLock(Chunk.Resolution.Visible)) {
-						meshedChunk.setVisible(true);
-						meshedChunk.unlock(Chunk.Resolution.Visible);
-					} else throw new System.AccessViolationException($"Tried to set empty chunk to visible resolution in mesh generation job but chunk is locked.");
+					meshedChunk.recordEvent($"Mesh is empty, not reported to the level terrain manager.");
 				}
 			}
 		}

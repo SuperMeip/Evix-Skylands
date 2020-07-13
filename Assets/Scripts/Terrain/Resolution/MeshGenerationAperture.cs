@@ -185,14 +185,15 @@ namespace Evix.Terrain.Resolution {
       /// notify the chunk activaton channel that we want this chunk active
       /// </summary>
       public void doWork() {
+        Chunk chunk = level.getChunk(adjustment.chunkID);
+        chunk.clearMesh();
+        chunk.unlock(Chunk.Resolution.Meshed);
+
+        chunk.recordEvent($"Notifying level manager of cleared mesh");
         World.EventSystem.notifyChannelOf(
           new RemoveChunkMeshEvent(adjustment),
           EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates
         );
-
-        Chunk chunk = level.getChunk(adjustment.chunkID);
-        chunk.clearMesh();
-        chunk.unlock(Chunk.Resolution.Meshed);
       }
     }
 

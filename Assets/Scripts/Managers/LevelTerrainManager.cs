@@ -186,8 +186,12 @@ namespace Evix.Managers {
           Chunk chunk = level.getChunk(activatedChunkLocation.Value);
           if (!chunk.meshIsEmpty) {
             chunksToActivate.enqueue(activatedChunkLocation);
+          } else {
+            // set the chunk visible as, it is visible it just has no mesh
+            chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
+            chunk.setVisible();
+            chunk.unlock(Chunk.Resolution.Visible);
           }
-          chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
         } else {
           chunksToActivate.enqueue(activatedChunkLocation);
         }
@@ -199,7 +203,10 @@ namespace Evix.Managers {
           assignedController.setVisible(false);
         // if there's no controller found then it was never set active and we can just drop it too
         } else {
-          level.getChunk(deactivatedChunkLocation.Value).recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
+          Chunk chunkToSetInvisible = level.getChunk(deactivatedChunkLocation.Value);
+          chunkToSetInvisible.recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
+          chunkToSetInvisible.setVisible(false);
+          chunkToSetInvisible.unlock(Chunk.Resolution.Visible);
         }
       }
 
@@ -267,6 +274,8 @@ namespace Evix.Managers {
           if (tryToGetAssignedChunkController(rcme.adjustment.chunkID, out ChunkController assignedChunkController)) {
             chunksToDemesh.enqueue(level.getPriorityForAdjustment(rcme.adjustment), assignedChunkController);
             level.getChunk(rcme.adjustment.chunkID).recordEvent($"added to chunksToDemesh Level Manager queue");
+          } else {
+            level.getChunk(rcme.adjustment.chunkID).recordEvent($"no chunk controller to demesh, dropping from queue");
           }
           break;
         default:
