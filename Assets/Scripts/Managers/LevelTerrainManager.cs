@@ -85,6 +85,11 @@ namespace Evix.Managers {
 
     #endregion
 
+    /// <summary>
+    /// The current max chunk object ID. Used to name chunks
+    /// </summary>
+    int currentMaxChunkObjectID = 0;
+
     #region Initialization
 
     /// <summary>
@@ -129,7 +134,9 @@ namespace Evix.Managers {
       for (int i = 0; i < requiredNewNodeCount; i++) {
         ChunkController chunkController = Instantiate(ChunkPrefab).GetComponent<ChunkController>();
         chunkController.gameObject.SetActive(false);
-        chunkController.initalize();
+        chunkController.gameObject.name = $"Chunk #{++currentMaxChunkObjectID}#";
+        chunkController.initalize(this);
+        chunkController.transform.SetParent(transform);
         freeChunkControllerPool.Enqueue(chunkController);
       }
 
@@ -158,7 +165,11 @@ namespace Evix.Managers {
 
       /// mesh the chunk that has a controller waiting
       if (chunksToMesh.tryDequeue(out KeyValuePair<float, ChunkController> meshedChunkLocation)) {
-        meshedChunkLocation.Value.meshChunkWithCurrentData();
+        if (meshedChunkLocation.Value.isActive) {
+          meshedChunkLocation.Value.meshChunkWithCurrentData();
+        } else {
+          meshedChunkLocation.Value.recordEvent($"dropped from chunksToMesh queue, no longer set to any chunk");
+        }
       }
 
       /// go through the chunk activation queue and activate chunks
@@ -195,6 +206,8 @@ namespace Evix.Managers {
       /// try to remove meshes for the given chunk and reset it's mesh data
       if (chunksToDemesh.tryDequeue(out KeyValuePair<float, ChunkController> chunkNodeToDemesh)) {
         chunkNodeToDemesh.Value.clearAssignedChunkData();
+        usedChunkControllers.TryRemove(chunkNodeToDemesh.Value.chunkLocation, out _);
+        freeChunkControllerPool.Enqueue(chunkNodeToDemesh.Value);
       }
     }
 
@@ -293,11 +306,18 @@ namespace Evix.Managers {
         } else {
           return false;
         }
-      }
+      } else {
+          /// if the mesh is empty, we can just assing it as visibl without assigning it to a controller
+        if (chunk.tryToLock(Chunk.Resolution.Visible)) {
+          chunk.setVisible(true);
+          chunk.unlock(Chunk.Resolution.Visible);
+          chunk.recordEvent($"generated mesh is empty, LevelManager dropping chunk");
+          return true;
+        }
 
-      /// if the mesh is empty, we can just drop the chunk without assigning it
-      chunk.recordEvent($"generated mesh is empty, LevelManager dropping chunk");
-      return true;
+        // if we couldn't lock it to set it as visible, try again
+        return false;
+      }
     }
 
     /// <summary>
@@ -308,6 +328,36 @@ namespace Evix.Managers {
     /// <returns></returns>
     bool tryToGetAssignedChunkController(Coordinate chunkID, out ChunkController assignedController) {
       return usedChunkControllers.TryGetValue(chunkID, out assignedController);
+    }
+
+    /// <summary>
+    /// Try to get a chunk controller named with the given ID
+    /// </summary>
+    /// <param name="chunkControllerID"></param>
+    /// <param name="chunkController"></param>
+    /// <returns></returns>
+    public bool tryToGetChunkControllerByID(int chunkControllerID, out ChunkController chunkController) {
+      chunkController = null;
+
+      /// check used chunks
+      foreach(ChunkController controller in usedChunkControllers.Values) {
+        if (controller.gameObject.name.Contains($"#{chunkControllerID}#")) {
+          chunkController = controller;
+
+          return true;
+        }
+      }
+
+      /// check free chunks
+      foreach(ChunkController controller in freeChunkControllerPool) {
+        if (controller.gameObject.name.Contains($"#{chunkControllerID}#")) {
+          chunkController = controller;
+
+          return true;
+        }
+      }
+
+      return false;
     }
 
     #endregion

@@ -25,22 +25,32 @@ namespace Evix.Terrain.Resolution {
     internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
       chunk = null;
       // if this is valid up to the meshed level, it's valid so far.
-      if (tryToGetSiblingAperture(Chunk.Resolution.Meshed, out ChunkResolutionAperture parentAperture) 
-        && parentAperture.isValid(adjustment, out chunk)
-      ) {
+      if (base.isValid(adjustment, out chunk)) {
         if (adjustment.type == FocusAdjustmentType.InFocus) {
-          // if the chunk's is loaded and the mesh has been generated, and it's not empty.
-          if (chunk.currentResolution == Chunk.Resolution.Meshed && chunk.meshIsEmpty) {
-            chunk.recordEvent($"dropped from ChunkVisibilityAperture, chunk is meshed and mesh is empty");
+          // if it's already visible, we can drop it from the job queue
+          if (chunk.currentResolution == Chunk.Resolution.Visible) {
+            chunk.recordEvent($"Chunk invalid for Visible Chunk queue, already at {chunk.currentResolution} resolution");
             return false;
+          }
+
+          // if the chunk's is loaded and the mesh has been generated, and it's empty then we can just set it as visible
+          if (chunk.currentResolution >= Chunk.Resolution.Meshed && chunk.meshIsEmpty) {
+            chunk.recordEvent($"dropped from ChunkVisibilityAperture, chunk is meshed and mesh is empty");
+            if (chunk.currentResolution == Chunk.Resolution.Visible) {
+              return false;
+            } else if (chunk.tryToLock(Chunk.Resolution.Visible)) {
+              chunk.setVisible(true);
+              chunk.unlock(Chunk.Resolution.Visible);
+
+              return false;
+            }
           }
 
           // if the chunk isn't loaded yet, and we're waiting to mesh it, it's still valid, just not ready.
           return true;
         // if it's out of focus, we only need to keep it if the chunk is at the right resolution
         } else {
-          chunk.recordEvent($"dropped from out of focus ChunkVisibilityAperture, it's not high enough resolution to de-res");
-          return chunk.currentResolution == Chunk.Resolution.Visible;
+          return true;
         }
       }
 

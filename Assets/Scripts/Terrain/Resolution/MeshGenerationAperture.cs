@@ -38,12 +38,6 @@ namespace Evix.Terrain.Resolution {
             return false;
           }
 
-          // if it's already visible, we can drop it from the job queue
-          if (chunk.currentResolution == Chunk.Resolution.Visible && adjustment.resolution == Chunk.Resolution.Visible) {
-            chunk.recordEvent($"Chunk invalid for Visible Chunk queue, already at {chunk.currentResolution} resolution");
-            return false;
-          }
-
           if (chunk.currentResolution == Chunk.Resolution.Loaded) {
             /// if it's loaded and solid, check if all the chunks that block it are solid. If they are we can ignore this chunk
             if (chunk.isSolid) {
@@ -62,12 +56,14 @@ namespace Evix.Terrain.Resolution {
                 return true;
               });
 
-
-              if (allBlockingNeighborsAreSolid) {
+              /// set mesh as empty if we don't need to load it
+              if (allBlockingNeighborsAreSolid && chunk.tryToLock(Chunk.Resolution.Meshed)) {
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, solid chunk is hidden");
+                chunk.setMesh(default);
+                chunk.unlock(Chunk.Resolution.Meshed);
+
                 return false;
               }
-
             }
 
             /// if it's loaded and empty, check if the chunks that require this one for rendering are also empty.
@@ -89,10 +85,10 @@ namespace Evix.Terrain.Resolution {
               });
               
               /// set mesh as empty if we don't need to load it
-              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock(resolution)) {
+              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock(Chunk.Resolution.Meshed)) {
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, chunk is empty and has no dependent neighbors");
                 chunk.setMesh(default);
-                chunk.unlock(resolution);
+                chunk.unlock(Chunk.Resolution.Meshed);
 
                 return false;
               }

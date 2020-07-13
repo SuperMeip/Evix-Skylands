@@ -180,6 +180,7 @@ namespace Evix.Terrain.Resolution {
 
       foreach (Adjustment adjustment in chunkAdjustments) {
         adjustmentQueue.Enqueue(getPriority(adjustment, newFocalPoint), adjustment);
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
         newAdjustmentCount++;
       }
 
@@ -209,6 +210,7 @@ namespace Evix.Terrain.Resolution {
 
       /// enqueue each new adjustment
       foreach (Adjustment adjustment in chunkAdjustments) {
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
         adjustmentQueue.Enqueue(getPriority(adjustment, focus), adjustment);
       }
     }

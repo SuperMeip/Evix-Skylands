@@ -202,7 +202,7 @@ namespace Evix.Managers {
       EditorGUI.EndDisabledGroup();
 
       if (GUILayout.Button("Print Current Chunk Edit History Log")) {
-        LevelDataTester.PrintChunkRecords(focus.currentChunkID);
+        LevelDataTester.PrintChunkDataRecords(focus.currentChunkID);
       }
       DrawDefaultInspector();
     }

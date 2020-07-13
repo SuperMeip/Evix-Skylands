@@ -282,12 +282,14 @@ namespace Evix.Terrain.Collections {
         if (isLockedForWork && resolutionModificationLockType == Resolution.Visible && currentResolution == Resolution.Meshed) {
           recordEvent($"Setting chunk visible");
           currentResolution = Resolution.Visible;
-        } else throw new System.AccessViolationException($"Attempting to set a chunk visible without the correct aperture lock or resolution level: {currentResolution}");
+        } else throw new System.AccessViolationException($"Attempting to set a chunk visible without the correct aperture lock or resolution level:  " +
+          $"{RecordedInterfaceHelper.FormatRecordsMarkdown(eventHistory.ToArray())}");
       } else {
         if (isLockedForWork && resolutionModificationLockType == Resolution.Visible && currentResolution == Resolution.Visible) {
           recordEvent($"Setting chunk invisible");
           currentResolution = Resolution.Meshed;
-        } else throw new System.AccessViolationException($"Attempting to set a chunk invisible without the correct aperture lock or resolution level: {currentResolution}");
+        } else throw new System.AccessViolationException($"Attempting to set a chunk invisible without the correct aperture lock or resolution level: " +
+          $"{RecordedInterfaceHelper.FormatRecordsMarkdown(eventHistory.ToArray())}");
       }
     }
 
@@ -298,7 +300,7 @@ namespace Evix.Terrain.Collections {
     /// <summary>
     /// A history of events recorded by this chunk
     /// </summary>
-    List<(string, string)> eventHistory
+    readonly List<(string, string)> eventHistory
       = new List<(string, string)>();
 
     /// <summary>
