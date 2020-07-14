@@ -78,6 +78,26 @@ namespace System.Collections.Concurrent {
       return false;
     }
 
+    /// <summary>Attempts to remove and return the next prioritized item in the queue.</summary>
+    /// <param name="result">
+    /// When this method returns, if the operation was successful, result contains the object removed. If
+    /// no object was available to be removed, the value is unspecified.
+    /// </param>
+    /// <returns>
+    /// true if an element was removed and returned from the queue succesfully; otherwise, false.
+    /// </returns>
+    public bool tryDequeue(out TValue result) {
+      result = default;
+      lock (_syncLock) {
+        if (_minHeap.Count > 0) {
+          var value = _minHeap.Remove();
+          result = value.Value;
+          return true;
+        }
+      }
+      return false;
+    }
+
     /// <summary>Attempts to return the next prioritized item in the queue.</summary>
     /// <param name="result">
     /// When this method returns, if the operation was successful, result contains the object.

@@ -1,5 +1,6 @@
 using Evix.Terrain.Collections;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -55,8 +56,8 @@ namespace Evix.Terrain.Resolution {
     /// <summary>
     /// The priority queue that this aperture manages
     /// </summary>
-    readonly PriorityQueue<int, Adjustment> adjustmentQueue
-      = new PriorityQueue<int, Adjustment>();
+    readonly ConcurrentPriorityQueue<int, Adjustment> adjustmentQueue
+      = new ConcurrentPriorityQueue<int, Adjustment>();
 
     /// <summary>
     /// The chunk bounds this aperture is managing
@@ -77,7 +78,7 @@ namespace Evix.Terrain.Resolution {
       IFocusLens lens,
       int managedChunkRadius,
       int managedChunkHeight = 0,
-      float yDistanceWeightMultiplier = 5.0f
+      float yDistanceWeightMultiplier = 3.0f
       ) {
       this.resolution = resolution;
       this.lens = lens;
@@ -152,7 +153,7 @@ namespace Evix.Terrain.Resolution {
           // if it's not ready, or there's a conflict requeue
           // if there's a conflict, it means a job is already running on this chunk and we should wait for that one to finish
         } else {
-          adjustmentQueue.Enqueue(
+          adjustmentQueue.enqueue(
             getPriority(adjustment, focus),
             adjustment
           );
@@ -170,7 +171,7 @@ namespace Evix.Terrain.Resolution {
     /// <param name="chunkID"></param>
     /// <param name="focus"></param>
     public void addDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
-      adjustmentQueue.Enqueue(0, new Adjustment(
+      adjustmentQueue.enqueue(0, new Adjustment(
         chunkID,
         FocusAdjustmentType.Dirty,
         resolution,
@@ -194,7 +195,7 @@ namespace Evix.Terrain.Resolution {
       });
 
       foreach (Adjustment adjustment in chunkAdjustments) {
-        adjustmentQueue.Enqueue(getPriority(adjustment, newFocalPoint), adjustment);
+        adjustmentQueue.enqueue(getPriority(adjustment, newFocalPoint), adjustment);
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
         newAdjustmentCount++;
       }
@@ -226,7 +227,7 @@ namespace Evix.Terrain.Resolution {
       /// enqueue each new adjustment
       foreach (Adjustment adjustment in chunkAdjustments) {
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
-        adjustmentQueue.Enqueue(getPriority(adjustment, focus), adjustment);
+        adjustmentQueue.enqueue(getPriority(adjustment, focus), adjustment);
       }
     }
 
