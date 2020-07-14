@@ -149,7 +149,7 @@ namespace Evix {
 			newFocus.registerTo(this, ++currentMaxFocusID);
 			fociByID[newFocus.id] = newFocus;
 			// create a new lens for the focus
-			IFocusLens lens = new PlayerLens(newFocus, this, 10, 5);
+			IFocusLens lens = new PlayerLens(newFocus, this, 20, 10);
 			// add the lens and focus to the level storage
 			focalLenses.Add(newFocus, lens);
 

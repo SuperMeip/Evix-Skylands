@@ -49,7 +49,7 @@ namespace Evix.Terrain.Resolution {
           return true;
         } else {
           // if it's already out focus enough, we can drop it from the job queue
-          if (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution == Chunk.Resolution.Meshed) {
+          if (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution <= Chunk.Resolution.Meshed) {
             chunk.recordEvent($"Chunk invalid for inVisible Chunk queue, already at {chunk.currentResolution} resolution");
             return false;
           }

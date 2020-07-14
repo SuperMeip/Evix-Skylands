@@ -1,6 +1,7 @@
 using Evix.Terrain.Collections;
 using System;
-using System.Collections.Concurrent;
+using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -56,8 +57,8 @@ namespace Evix.Terrain.Resolution {
     /// <summary>
     /// The priority queue that this aperture manages
     /// </summary>
-    readonly ConcurrentPriorityQueue<int, Adjustment> adjustmentQueue
-      = new ConcurrentPriorityQueue<int, Adjustment>();
+    readonly SortedList adjustmentQueue
+      = SortedList.Synchronized(new SortedList(new DuplicateIntComparer()));
 
     /// <summary>
     /// The chunk bounds this aperture is managing
@@ -90,7 +91,7 @@ namespace Evix.Terrain.Resolution {
       MaxManagedChunkDistance = (int)Math.Sqrt(
         // a[a'^2 + b'^2] squared + b squared 
         distanceSquared + distanceSquared + distanceHeightSquared
-      ) + 5;
+      ) + 1;
     }
 
     #endregion
@@ -136,33 +137,37 @@ namespace Evix.Terrain.Resolution {
     /// <returns></returns>
     public bool tryToGetNextAdjustmentJob(ILevelFocus focus, out ApetureJobHandle jobHandle) {
       jobHandle = null;
-      if (adjustmentQueue.tryDequeue(out Adjustment adjustment)) {
-        if (!isWithinManagedBounds(adjustment) || !isValid(adjustment, out Chunk validatedChunk)) {
-          return false;
+      int queueBottleneck = 10;
+      for (int index = 0; (index < adjustmentQueue.Count) && (queueBottleneck-- > 0); index++) {
+        Adjustment waitingAdjustment;
+        // get the 0th adjustment
+        lock (adjustmentQueue) {
+          waitingAdjustment = (Adjustment)adjustmentQueue.GetByIndex(index);
+          adjustmentQueue.RemoveAt(index);
+        }
+
+        if (!isWithinManagedBounds(waitingAdjustment) || !isValid(waitingAdjustment, out Chunk validatedChunk)) {
+          continue;
         }
 
         // if the item is not locked by another job, check if it's ready
         // if it's ready, we'll try to lock it so this aperture can work on it
         if (!validatedChunk.isLockedForWork
-          && isReady(adjustment, validatedChunk)
-          && validatedChunk.tryToLock(adjustment.resolution)
+          && isReady(waitingAdjustment, validatedChunk)
+          && validatedChunk.tryToLock(waitingAdjustment.resolution)
         ) {
-          jobHandle = new ApetureJobHandle(getJob(adjustment));
-          validatedChunk.recordEvent($"Aperture Type {GetType()} running job {jobHandle.job.GetType()} for adjustment: {adjustment}");
+          jobHandle = new ApetureJobHandle(getJob(waitingAdjustment));
+          validatedChunk.recordEvent($"Aperture Type {GetType()} running job {jobHandle.job.GetType()} for adjustment: {waitingAdjustment}");
+
           return true;
           // if it's not ready, or there's a conflict requeue
           // if there's a conflict, it means a job is already running on this chunk and we should wait for that one to finish
         } else {
-          adjustmentQueue.enqueue(
-            getPriority(adjustment, focus),
-            adjustment
-          );
-          return false;
+          adjustmentQueue.Add(getPriority(waitingAdjustment, focus), waitingAdjustment);
         }
-        // if there's no jobs left, we can get nothing
-      } else {
-        return false;
       }
+
+      return false;
     }
 
     /// <summary>
@@ -171,7 +176,7 @@ namespace Evix.Terrain.Resolution {
     /// <param name="chunkID"></param>
     /// <param name="focus"></param>
     public void addDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
-      adjustmentQueue.enqueue(0, new Adjustment(
+      adjustmentQueue.Add(0, new Adjustment(
         chunkID,
         FocusAdjustmentType.Dirty,
         resolution,
@@ -195,7 +200,7 @@ namespace Evix.Terrain.Resolution {
       });
 
       foreach (Adjustment adjustment in chunkAdjustments) {
-        adjustmentQueue.enqueue(getPriority(adjustment, newFocalPoint), adjustment);
+        adjustmentQueue.Add(getPriority(adjustment, newFocalPoint), adjustment);
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
         newAdjustmentCount++;
       }
@@ -226,8 +231,8 @@ namespace Evix.Terrain.Resolution {
 
       /// enqueue each new adjustment
       foreach (Adjustment adjustment in chunkAdjustments) {
+        adjustmentQueue.Add(getPriority(adjustment, focus), adjustment);
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
-        adjustmentQueue.enqueue(getPriority(adjustment, focus), adjustment);
       }
     }
 
@@ -235,7 +240,6 @@ namespace Evix.Terrain.Resolution {
     /// Get an adjustment's priority for this aperture.
     /// Lower is better(?)
     /// </summary>
-    /// <param name="adjustment"></param>
     /// <returns></returns>
     public int getPriority(Adjustment adjustment, ILevelFocus focus) {
       int distancePriority = adjustment.type == FocusAdjustmentType.InFocus
@@ -243,6 +247,51 @@ namespace Evix.Terrain.Resolution {
       : MaxManagedChunkDistance - (int)adjustment.chunkID.distanceYFlattened(focus.currentChunkID, YWeightMultiplier);
 
       return distancePriority/* + (int)adjustment.resolution * 3*/;
+    }
+
+    /// <summary>
+    /// Try to add the value to the adjustment queue
+    /// </summary>
+    /// <returns></returns>
+    bool tryToAddToQueue(Adjustment adjustment, ILevelFocus focus, int? priorityOverride = null) {
+      if (adjustmentQueue.ContainsValue(adjustment)) {
+        return false;
+      }
+
+      // if this isn't a dirty update, and we already have the opposite update in the queue, remove that one
+      if (adjustment.type != FocusAdjustmentType.Dirty) {
+        Adjustment oppositeAdjustment = adjustment.Opposite;
+        if (adjustmentQueue.ContainsValue(oppositeAdjustment)) {
+          lock (adjustmentQueue) {
+            int index = adjustmentQueue.IndexOfValue(adjustment);
+            adjustmentQueue.RemoveAt(index);
+          }
+        }
+      }
+
+      adjustmentQueue.Add(priorityOverride ?? getPriority(adjustment, focus), adjustment);
+      return true;
+    }
+
+
+    /// <summary>
+    /// Comparer for comparing two keys, handling equality as beeing greater
+    /// Use this Comparer e.g. with SortedLists or SortedDictionaries, that don't allow duplicate keys
+    /// </summary>
+    /// <typeparam name="TKey"></typeparam>
+    public class DuplicateIntComparer
+      : System.Collections.IComparer {
+      #region IComparer<TKey> Members
+
+      public int Compare(object x, object y) {
+        int result = ((int)x).CompareTo((int)y);
+
+        return result == 0
+          ? 1   // Handle equality as beeing greater
+          : result;
+      }
+
+      #endregion
     }
 
     /// <summary>
@@ -275,6 +324,20 @@ namespace Evix.Terrain.Resolution {
       /// The id of the focus this adjustment was made for
       /// </summary>
       public readonly int focusID;
+
+      /// <summary>
+      /// The opposite of this adjustment
+      /// </summary>
+      public Adjustment Opposite {
+        get => new Adjustment(
+          chunkID,
+          type == FocusAdjustmentType.InFocus
+            ? FocusAdjustmentType.OutOfFocus
+            : FocusAdjustmentType.InFocus,
+          resolution,
+          focusID
+        );
+      }
 
       /// <summary>
       /// Make a new adjustment

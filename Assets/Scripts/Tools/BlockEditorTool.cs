@@ -43,6 +43,7 @@ namespace Evix.Tools {
 
     void Update() {
       udpdateCurrentlySelectedBlock();
+      checkIfBlockShouldBeDeleted();
     }
 
     /// <summary>
@@ -52,8 +53,17 @@ namespace Evix.Tools {
       Ray ray = camera.ScreenPointToRay(new Vector3(camera.pixelWidth / 2, camera.pixelHeight / 2, 0));
 
       if (Physics.Raycast(ray, out RaycastHit hit, 25)) {
-        currentlySelectedVoxelPosition = hit.point/* + hit.normal*/;
+        currentlySelectedVoxelPosition = hit.point + hit.normal;
         selectedBlockOutlineObject.transform.position = currentlySelectedVoxelPosition;
+      }
+    }
+
+    /// <summary>
+    /// Remove the block and mark the chunk dirty on left click
+    /// </summary>
+    void checkIfBlockShouldBeDeleted() {
+      if (Input.GetMouseButtonDown(0)) {
+        removeBlock(currentlySelectedVoxelPosition);
       }
     }
 
