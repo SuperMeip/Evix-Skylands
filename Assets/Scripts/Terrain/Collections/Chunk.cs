@@ -289,7 +289,7 @@ namespace Evix.Terrain.Collections {
     /// <summary>
     /// Set that the chunk node has been meshed in game world for this chunk, or unmesh it
     /// </summary>
-    public void setMesh(ChunkMeshData meshData, bool chunkIsDirty) {
+    public void setMesh(ChunkMeshData meshData, bool chunkIsDirty = false) {
       if (isLockedForWork 
         && resolutionModificationLockType == Resolution.Meshed 
         && (chunkIsDirty || currentResolution == Resolution.Loaded)
