@@ -284,16 +284,11 @@ namespace Evix.Terrain.MeshGeneration {
 				Chunk meshedChunk = level.getChunk(adjustment.chunkID);
 				meshedChunk.setMesh(generatedChunkMesh);
 				meshedChunk.unlock(Chunk.Resolution.Meshed);
-				if (!generatedChunkMesh.isEmpty) {
-					level.getChunk(adjustment.chunkID).recordEvent($"Mesh notification being sent to level terrain manager");
-					World.EventSystem.notifyChannelOf(
-						new MeshGenerationAperture.ChunkMeshLoadingFinishedEvent(adjustment, generatedChunkMesh),
-						EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates
-					);
-				// if it's empty, record that and set the resolution to fully visible, because it's empty so it is visible
-				} else {
-					meshedChunk.recordEvent($"Mesh is empty, not reported to the level terrain manager.");
-				}
+				level.getChunk(adjustment.chunkID).recordEvent($"Mesh notification being sent to level terrain manager");
+				World.EventSystem.notifyChannelOf(
+					new MeshGenerationAperture.ChunkMeshLoadingFinishedEvent(adjustment, generatedChunkMesh),
+					EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates
+				);
 			}
 		}
 

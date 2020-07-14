@@ -9,7 +9,7 @@ namespace Evix.Terrain.Resolution {
     /// <summary>
     /// The focus change type of an adjustment to be made to a chunk
     /// </summary>
-    public enum FocusAdjustmentType { InFocus, OutOfFocus };
+    public enum FocusAdjustmentType { InFocus, OutOfFocus, Dirty };
 
     /// <summary>
     /// The resolution this aperture loads to
@@ -87,9 +87,9 @@ namespace Evix.Terrain.Resolution {
       double distanceSquared = Math.Pow(managedChunkRadius, 2);
       double distanceHeightSquared = Math.Pow(managedChunkHeightRadius, 2);
       MaxManagedChunkDistance = (int)Math.Sqrt(
-      // a[a'^2 + b'^2] squared + b squared 
-      distanceSquared + distanceSquared + distanceHeightSquared
-      ) + 1;
+        // a[a'^2 + b'^2] squared + b squared 
+        distanceSquared + distanceSquared + distanceHeightSquared
+      ) + 5;
     }
 
     #endregion
@@ -162,6 +162,21 @@ namespace Evix.Terrain.Resolution {
       } else {
         return false;
       }
+    }
+
+    /// <summary>
+    /// Add a dirty chunk to this apeture's queue
+    /// </summary>
+    /// <param name="chunkID"></param>
+    /// <param name="focus"></param>
+    public void addDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
+      adjustmentQueue.Enqueue(0, new Adjustment(
+        chunkID,
+        FocusAdjustmentType.Dirty,
+        resolution,
+        focus.id
+      ));
+      lens.level.getChunk(chunkID).recordEvent($"Apeture type {GetType()} for {resolution} resolution has been notified this chunk is dirty");
     }
 
     /// <summary>

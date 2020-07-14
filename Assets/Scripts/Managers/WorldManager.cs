@@ -22,7 +22,7 @@ namespace Evix.Managers {
 
 		void startLevelManager() {
 			World.SetActiveLevel(new Level((1000, 20, 1000)));
-			startingFocus.setPosition((World.Current.activeLevel.chunkBounds) / 2 * Chunk.Diameter);
+			startingFocus.setPosition((World.Current.activeLevel.chunkBounds) / 2 * Chunk.Diameter + (0, Chunk.Diameter, 0));
 			levelManager.initializeFor(World.Current.activeLevel, startingFocus);
 		}
 	}

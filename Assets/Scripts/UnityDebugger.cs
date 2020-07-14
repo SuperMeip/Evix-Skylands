@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Evix {
 
@@ -43,6 +44,16 @@ namespace Evix {
     public void logError(string debugMessage) {
       if (isEnabled) {
         Debug.LogError(debugMessage);
+      }
+    }
+
+    /// <summary>
+    /// Log a debug warning
+    /// </summary>
+    /// <param name="debugMessage"></param>
+    public void logWarning(string debugMessage) {
+      if (isEnabled) {
+        Debug.LogWarning(debugMessage);
       }
     }
   }

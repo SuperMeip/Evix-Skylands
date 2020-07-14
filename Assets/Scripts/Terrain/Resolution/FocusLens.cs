@@ -1,3 +1,4 @@
+using Evix.Events;
 using Evix.Terrain.Collections;
 using System.Collections.Generic;
 
@@ -36,6 +37,8 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     readonly List<ChunkResolutionAperture.ApetureJobHandle> runningJobs
       = new List<ChunkResolutionAperture.ApetureJobHandle>();
+
+    #region Constructors and Initialization
 
     /// <summary>
     /// Create a new level of the given size that uses the given apetures.
@@ -82,6 +85,30 @@ namespace Evix.Terrain.Resolution {
     }
 
     /// <summary>
+    /// Get the initialized apertures this lens will be constructed of in order of priority
+    /// </summary>
+    /// <returns></returns>
+    protected abstract IChunkResolutionAperture[] initializeApertures(ILensOptions lensOptions = null);
+
+    /// <summary>
+    /// Base interface for lens option structs
+    /// </summary>
+    public interface ILensOptions {
+
+      /// <summary>
+      /// The chunk radius to use as a base for all others.
+      /// Ususally the visual chunk radius
+      /// </summary>
+      int baseChunkRadius {
+        get;
+      }
+    }
+
+    #endregion
+
+    #region Apeture Loop Functions
+
+    /// <summary>
     /// Schedule the next chunk adjustment job for this lens
     /// </summary>
     public void scheduleNextChunkAdjustment() {
@@ -123,6 +150,10 @@ namespace Evix.Terrain.Resolution {
       }
     }
 
+    #endregion
+
+    #region Utility Functions
+
     /// <summary>
     /// Get the priority for an adjustment from aperture calculations
     /// </summary>
@@ -143,26 +174,20 @@ namespace Evix.Terrain.Resolution {
       return apeturesByResolution.TryGetValue(resolution, out aperture);
     }
 
-    ///// internal functions
-
     /// <summary>
-    /// Get the initialized apertures this lens will be constructed of in order of priority
+    /// Capture notifications about dirtied chunks
     /// </summary>
-    /// <returns></returns>
-    protected abstract IChunkResolutionAperture[] initializeApertures(ILensOptions lensOptions = null);
-
-    /// <summary>
-    /// Base interface for lens option structs
-    /// </summary>
-    public interface ILensOptions {
-
-      /// <summary>
-      /// The chunk radius to use as a base for all others.
-      /// Ususally the visual chunk radius
-      /// </summary>
-      int baseChunkRadius {
-        get;
+    /// <param name="event"></param>
+    public void notifyOf(IEvent @event) {
+      if (@event is Level.ChunkDirtiedEvent cde) {
+        foreach(ChunkResolutionAperture aperture in apeturesByPriority) {
+          if (aperture.resolution == Chunk.Resolution.Meshed && aperture.isWithinManagedBounds(cde.chunkID)) {
+            aperture.addDirtyChunk(cde.chunkID, focus);
+          }
+        }
       }
     }
+
+    #endregion
   }
 }

@@ -1,4 +1,5 @@
-﻿using Evix.Terrain.Collections;
+﻿using Evix.Events;
+using Evix.Terrain.Collections;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ namespace Evix.Terrain.Resolution {
   /// <summary>
   /// A collection of layered Chunk resolution Apertures used to handle a level focus
   /// </summary>
-  public interface IFocusLens {
+  public interface IFocusLens : IObserver {
 
     /// <summary>
     /// The level this lens works for

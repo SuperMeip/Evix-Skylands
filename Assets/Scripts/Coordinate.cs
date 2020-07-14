@@ -84,6 +84,14 @@ namespace Evix {
       return new Coordinate((int)coordinate.x, (int)coordinate.y, (int)coordinate.z);
     }
 
+    /// <summary>
+    /// Make a coordinate into a vector 3
+    /// </summary>
+    /// <param name="coordinate"></param>
+    public static implicit operator Vector3(Coordinate coordinate) {
+      return new Vector3(coordinate.x, coordinate.y, coordinate.z);
+    }
+
     #endregion
 
     #region Operator Overrides
@@ -1008,6 +1016,20 @@ namespace Evix {
   #region Float Utilities
 
   public static class RangeUtilities {
+
+    /// <summary>
+    /// Scale a float value to a new set of mazes and mins.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="newMax"></param>
+    /// <param name="newMin"></param>
+    /// <param name="oldMax"></param>
+    /// <param name="oldMin"></param>
+    /// <returns></returns>
+    public static float scale(this float value, float newMax, float newMin, float oldMax = 1.0f, float oldMin = -1.0f) {
+      float scaled = newMin + (value - oldMin) / (oldMax - oldMin) * (newMax - newMin);
+      return scaled;
+    }
 
     /// <summary>
     /// fast clamp a float to between 0 and 1

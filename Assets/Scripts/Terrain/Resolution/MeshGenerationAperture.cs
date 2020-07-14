@@ -16,7 +16,7 @@ namespace Evix.Terrain.Resolution {
     /// <param name="adjustment"></param>
     /// <returns></returns>
     protected override IAdjustmentJob getJob(Adjustment adjustment) {
-      if (adjustment.type == FocusAdjustmentType.InFocus) {
+      if (adjustment.type == FocusAdjustmentType.InFocus || adjustment.type == FocusAdjustmentType.Dirty) {
         return MarchingTetsMeshGenerator.GetJob(adjustment, lens.level);
       } else {
         return new DemeshChunkObjectJob(adjustment, lens.level);
@@ -31,6 +31,11 @@ namespace Evix.Terrain.Resolution {
     /// <returns></returns>
     internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
       if (base.isValid(adjustment, out chunk)) {
+        /// for dirty chunks we can just go for it
+        if (adjustment.type == FocusAdjustmentType.Dirty) {
+          return true;
+        }
+
         if (adjustment.type == FocusAdjustmentType.InFocus) {
           // if it's already meshed, we can drop it from the job queue
           if (chunk.currentResolution == Chunk.Resolution.Meshed && adjustment.resolution == Chunk.Resolution.Meshed) {
@@ -114,9 +119,14 @@ namespace Evix.Terrain.Resolution {
     /// <param name="chunk"></param>
     /// <returns></returns>
     protected override bool isReady(Adjustment adjustment, Chunk validChunk) {
-      /// if a valid chunk is going out of focus, it should be ready to go
-      if (adjustment.type == FocusAdjustmentType.OutOfFocus) {
+      /// if a valid chunk is going out of focus or is dirty, it should be ready to go
+      if (adjustment.type == FocusAdjustmentType.Dirty) {
         return true;
+      }
+
+      /// We can only demesh if it's back at the mesh stage and no longer visisble
+      if (adjustment.type == FocusAdjustmentType.OutOfFocus) {
+        return validChunk.currentResolution == Chunk.Resolution.Meshed;
       }
 
       /// if the chunk has it's data loaded, lets check it's nessisary neighbors

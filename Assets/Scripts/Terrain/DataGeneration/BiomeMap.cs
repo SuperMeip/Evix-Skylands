@@ -23,7 +23,7 @@ namespace Evix.Terrain.DataGeneration {
     /// <param name="levelSeed"></param>
     /// <returns></returns>
     static VoxelSource GetBiomeForChunk(Coordinate chunkID, int levelSeed) {
-      return new PerlinSource(levelSeed);
+      return new PlainsSource(levelSeed);
     }
 
     /// <summary>

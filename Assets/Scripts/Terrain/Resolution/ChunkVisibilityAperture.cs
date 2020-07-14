@@ -47,8 +47,14 @@ namespace Evix.Terrain.Resolution {
 
           // if the chunk isn't loaded yet, and we're waiting to mesh it, it's still valid, just not ready.
           return true;
-        // if it's out of focus, we only need to keep it if the chunk is at the right resolution
         } else {
+          // if it's already out focus enough, we can drop it from the job queue
+          if (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution == Chunk.Resolution.Meshed) {
+            chunk.recordEvent($"Chunk invalid for inVisible Chunk queue, already at {chunk.currentResolution} resolution");
+            return false;
+          }
+
+        // if it's out of focus or dirty, we're fine to go
           return true;
         }
       }
@@ -62,7 +68,7 @@ namespace Evix.Terrain.Resolution {
         if (validatedChunk.currentResolution == Chunk.Resolution.Meshed) {
           return true;
         }
-      } else {
+      } else if (adjustment.type == FocusAdjustmentType.OutOfFocus) {
         if (validatedChunk.currentResolution == Chunk.Resolution.Visible) {
           return true;
         }

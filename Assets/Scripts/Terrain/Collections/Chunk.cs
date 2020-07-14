@@ -13,13 +13,6 @@ namespace Evix.Terrain.Collections {
   public class Chunk : IRecorded {
 
     /// <summary>
-    /// The coordinate id of this chunk in the level
-    /// </summary>
-    public Coordinate id {
-      get;
-    }
-
-    /// <summary>
     /// Levels of how fully loaded a chunk's data can be, and how it's displayed
     /// It's "resolution"
     /// </summary>
@@ -29,6 +22,13 @@ namespace Evix.Terrain.Collections {
     /// The chunk of terrain's diameter in voxels. Used for x y and z
     /// </summary>
     public const int Diameter = 16;
+
+    /// <summary>
+    /// The coordinate id of this chunk in the level
+    /// </summary>
+    public Coordinate id {
+      get;
+    }
 
     /// <summary>
     /// The current resolution of this chunk
@@ -197,7 +197,11 @@ namespace Evix.Terrain.Collections {
         isLockedForWork = false;
         resolutionModificationLockType = default;
         recordEvent($"unlocked chunk for {lockType}");
-      } else throw new System.AccessViolationException($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {resolutionModificationLockType}");
+      } else {
+        recordEvent($"Tried to unlock locked chunk {resolutionModificationLockType}, with incorrect type {lockType}");
+        World.Debugger.logError($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {resolutionModificationLockType}");
+        throw new System.AccessViolationException($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {resolutionModificationLockType}");
+      }
     }
 
     /// <summary>
@@ -226,7 +230,10 @@ namespace Evix.Terrain.Collections {
         }
         this.solidVoxelCount = solidVoxelCount;
         currentResolution = Resolution.Loaded;
-      } else throw new System.AccessViolationException($"Attempting to set voxel data on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      } else {
+        recordEvent($"WARNING {id} could not set voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        World.Debugger.logError($"Attempting to set voxel data on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      }
     }
 
     /// <summary>
@@ -234,9 +241,9 @@ namespace Evix.Terrain.Collections {
     /// </summary>
     /// <returns></returns>
     public LevelDAO.ChunkSaveData clearVoxelData(ChunkResolutionAperture.Adjustment adjustment) {
-      if (isLockedForWork 
+      if (isLockedForWork
         && currentResolution >= Resolution.Loaded 
-        && adjustment.resolution == Resolution.UnLoaded
+        && adjustment.resolution == Resolution.Loaded
         && resolutionModificationLockType == Resolution.Loaded
       ) {
         // @todo: check if the voxels aren't nulled
@@ -248,7 +255,11 @@ namespace Evix.Terrain.Collections {
         currentResolution = Resolution.UnLoaded;
 
         return saveData;
-      } else throw new System.AccessViolationException($"Attempting to remove voxel data from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      } else {
+        recordEvent($"WARNING {id} could not remove voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        World.Debugger.logError($"Attempting to remove voxel data from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+        return default;
+      }
     }
 
     /// <summary>
@@ -259,7 +270,10 @@ namespace Evix.Terrain.Collections {
         recordEvent($"Setting chunk mesh with {meshData.triangleCount} tris");
         currentResolution = Resolution.Meshed;
         this.meshData = meshData;
-      } else throw new System.AccessViolationException($"Attempting to set a chunk as mehsed on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      } else {
+        recordEvent($"WARNING {id} could not set mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        World.Debugger.logError($"Attempting to set a chunk as mehsed on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      }
     }
 
     /// <summary>
@@ -271,7 +285,10 @@ namespace Evix.Terrain.Collections {
         recordEvent($"Clearing chunk mesh");
         currentResolution = Resolution.Loaded;
         meshData = default;
-      } else throw new System.AccessViolationException($"Attempting to remove a chunk mesh from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      } else {
+        recordEvent($"WARNING {id} could not clear mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        World.Debugger.logError($"Attempting to remove a chunk mesh from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+      }
     }
 
     /// <summary>

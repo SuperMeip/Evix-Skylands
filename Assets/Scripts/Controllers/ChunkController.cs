@@ -108,11 +108,18 @@ namespace Evix.Controllers {
         recordEvent($"ChunkData is missing for chunk ID {chunkLocation} on chunk object: {gameObject.name}");
         return;
       } else {
+        /// if the chunk already has a mesh with vers, clear it
+        if (meshFilter.mesh.vertexCount > 0) {
+          meshFilter.mesh.Clear();
+        }
+
+        /// set the mesh data
         meshFilter.mesh.SetVertices(chunkData.meshData.vertices);
         meshFilter.mesh.SetColors(chunkData.meshData.colors);
         meshFilter.mesh.SetTriangles(chunkData.meshData.triangles, 0);
         meshFilter.mesh.RecalculateNormals();
 
+        // move the chunk and update the shared mesh
         transform.position = chunkLocation.vec3 * Chunk.Diameter;
         meshCollider.sharedMesh = meshFilter.mesh;
         isMeshed = true;

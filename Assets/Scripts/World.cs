@@ -14,6 +14,11 @@ namespace Evix {
 		public const float BlockSize = 1.0f;
 
 		/// <summary>
+		/// Seconds in an in game hour
+		/// </summary>
+		public const int HourInSeconds = 60;
+
+		/// <summary>
 		/// The current level's save path.
 		/// </summary>
 		public static readonly string GameSaveFilePath;

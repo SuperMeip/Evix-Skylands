@@ -1,3 +1,4 @@
+using Evix.Events;
 using Evix.Managers;
 using Evix.Terrain.Collections;
 using Evix.Terrain.Resolution;
@@ -45,30 +46,30 @@ namespace Evix {
 		/// </summary>
 		int currentMaxFocusID = 0;
 
-	#region Constructors
+		#region Constructors
 
-	/// <summary>
-	/// Create a new level of the given size that uses the given apetures.
-	/// </summary>
-	/// <param name="chunkBounds"></param>
-	/// <param name="apeturesByPriority"></param>
-	public Level(Coordinate chunkBounds) {
+		/// <summary>
+		/// Create a new level of the given size that uses the given apetures.
+		/// </summary>
+		/// <param name="chunkBounds"></param>
+		/// <param name="apeturesByPriority"></param>
+		public Level(Coordinate chunkBounds) {
 			seed = 1234;
 			this.chunkBounds = chunkBounds;
 		}
 
-	#endregion
+		#endregion
 
-	#region Access Functions
+		#region Access Functions
 
-	/// <summary>
-	/// Get a terrain voxel based on it's world location
-	/// </summary>
-	/// <param name="x"></param>
-	/// <param name="y"></param>
-	/// <param name="z"></param>
-	/// <returns></returns>
-	public byte this[int x, int y, int z] {
+		/// <summary>
+		/// Get a terrain voxel based on it's world location
+		/// </summary>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		/// <param name="z"></param>
+		/// <returns></returns>
+		public byte this[int x, int y, int z] {
 			get {
 				if (chunks.TryGetValue(Chunk.IDFromWorldLocation(x, y, z), out Chunk chunk)) {
 					return chunk[x & 0xF, y & 0xF, z & 0xF];
@@ -148,7 +149,7 @@ namespace Evix {
 			newFocus.registerTo(this, ++currentMaxFocusID);
 			fociByID[newFocus.id] = newFocus;
 			// create a new lens for the focus
-			IFocusLens lens = new PlayerLens(newFocus, this, 5);
+			IFocusLens lens = new PlayerLens(newFocus, this, 10, 5);
 			// add the lens and focus to the level storage
 			focalLenses.Add(newFocus, lens);
 
@@ -160,19 +161,19 @@ namespace Evix {
 		/// </summary>
 		/// <param name="focus"></param>
 		/// <returns></returns>
-    internal IFocusLens getLens(ILevelFocus focus) {
+		internal IFocusLens getLens(ILevelFocus focus) {
 			return focalLenses[focus];
-    }
+		}
 
-    #endregion
+		#endregion
 
-    #region Utility Functions
+		#region Utility Functions
 
-    /// <summary>
-    /// Do something for each focus and lens managing it
-    /// </summary>
-    /// <param name="action"></param>
-    public void forEachFocalLens(Action<IFocusLens, ILevelFocus> action) {
+		/// <summary>
+		/// Do something for each focus and lens managing it
+		/// </summary>
+		/// <param name="action"></param>
+		public void forEachFocalLens(Action<IFocusLens, ILevelFocus> action) {
 			foreach (KeyValuePair<ILevelFocus, IFocusLens> focalLens in focalLenses) {
 				action(focalLens.Value, focalLens.Key);
 			}
@@ -188,6 +189,44 @@ namespace Evix {
 			return focalLenses[focus].getAdjustmentPriority(adjustment, focus);
 		}
 
-	#endregion
-  }
+		/// <summary>
+		/// Mark a chunk as in need of update
+		/// </summary>
+		/// <param name="coordinate"></param>
+		public void markChunkDirty(Coordinate chunkID) {
+			foreach (IFocusLens lens in focalLenses.Values) {
+				lens.notifyOf(new ChunkDirtiedEvent(chunkID));
+			}
+		}
+
+		#endregion
+
+		#region Events
+
+		/// <summary>
+		/// An event to notify lenses that a chunk is dirty
+		/// </summary>
+		public struct ChunkDirtiedEvent : IEvent {
+			/// <summary>
+			/// The name of this event
+			/// </summary>
+			public string name {
+				get;
+			}
+
+			/// <summary>
+			/// The dirty chunk
+			/// </summary>
+			public Coordinate chunkID {
+				get;
+			}
+
+			public ChunkDirtiedEvent(Coordinate chunkID) {
+				name = $"Chunk {chunkID} is dirty";
+				this.chunkID = chunkID;
+			}
+		}
+
+		#endregion
+	}
 }

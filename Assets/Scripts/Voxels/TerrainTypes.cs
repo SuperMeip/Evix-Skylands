@@ -56,6 +56,13 @@ namespace Evix.Terrain {
       /// <summary>
       /// Stone, a solid rock block
       /// </summary>
+      public static Type Grass {
+        get;
+      } = new Grass();
+
+      /// <summary>
+      /// Stone, a solid rock block
+      /// </summary>
       public static Type Placeholder {
         get;
       } = new Placeholder();
@@ -69,7 +76,8 @@ namespace Evix.Terrain {
         Air,
         Placeholder,
         Stone,
-        Dirt
+        Dirt,
+        Grass
       };
 
       /// <summary>
@@ -120,6 +128,16 @@ namespace Evix.Terrain {
     internal Dirt() : base(3) {
       Density = 54;
       Color = new Color(0.5686f, 0.3176f, 0.0941f);
+    }
+  }
+
+  /// <summary>
+  /// Stone, a solid rock block
+  /// </summary>
+  internal class Grass : TerrainBlock.Type {
+    internal Grass() : base(4) {
+      Density = 40;
+      Color = Color.green;
     }
   }
 }

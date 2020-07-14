@@ -47,10 +47,7 @@ namespace Evix.Terrain.Resolution {
       } else {
         Chunk chunkToSave = lens.level.getChunk(adjustment.chunkID);
         if (chunkToSave.currentResolution != Chunk.Resolution.UnLoaded) {
-          return new LevelDAO.SaveChunkDataToFileJob(
-            new Adjustment(adjustment.chunkID, adjustment.type, Chunk.Resolution.UnLoaded, adjustment.focusID),
-            lens.level
-          );
+          return new LevelDAO.SaveChunkDataToFileJob(adjustment, lens.level);
         } else throw new System.MissingMemberException(
           $"VoxelDataAperture is trying to save chunk data for {adjustment.chunkID} but could not find the chunk data in the level"
         );
