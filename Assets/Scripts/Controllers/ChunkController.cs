@@ -81,7 +81,9 @@ namespace Evix.Controllers {
       meshFilter = GetComponent<MeshFilter>();
       meshFilter.mesh = new Mesh();
       meshFilter.mesh.Clear();
+#if DEBUG
       recordEvent($"Initialized as {gameObject.name}");
+#endif
     }
 
     #endregion
@@ -95,8 +97,10 @@ namespace Evix.Controllers {
       isActive = true;
       chunkData = chunk;
       chunkLocation = chunkID;
+#if DEBUG
       chunk.recordEvent($"chunk mesh data assigned to a controller");
       recordEvent($"Set chunk data with {chunk.meshData.triangleCount} tris for chunk {chunkID}");
+#endif
     }
 
     /// <summary>
@@ -105,7 +109,9 @@ namespace Evix.Controllers {
     /// </summary>
     public void meshChunkWithCurrentData() {
       if (chunkData == null || chunkData.meshIsEmpty) {
+#if DEBUG
         recordEvent($"ChunkData is missing for chunk ID {chunkLocation} on chunk object: {gameObject.name}");
+#endif
         return;
       } else {
         /// if the chunk already has a mesh with vers, clear it
@@ -126,8 +132,10 @@ namespace Evix.Controllers {
 
         /// schedule a job to bake the mesh collider asyncly so it doesn't lag.
         colliderBakerHandler = (new ColliderMeshBakingJob(meshFilter.mesh.GetInstanceID())).Schedule();
+#if DEBUG
         chunkData.recordEvent($"Chunkcontroller has set data on mesh filter with {chunkData.meshData.triangleCount} tris");
         recordEvent($"set data on mesh filter for chunk {chunkLocation} with {chunkData.meshData.triangleCount} tris");
+#endif
       }
     }
 
@@ -141,12 +149,16 @@ namespace Evix.Controllers {
         gameObject.SetActive(true);
         chunkData.setVisible();
         chunkData.unlock(Chunk.Resolution.Visible);
+#if DEBUG
         recordEvent($"setting chunk visible");
+#endif
       } else {
         gameObject.SetActive(false);
         chunkData.setVisible(false);
         chunkData.unlock(Chunk.Resolution.Visible);
+#if DEBUG
         recordEvent($"hiding chunk");
+#endif
       }
     }
 
@@ -156,9 +168,13 @@ namespace Evix.Controllers {
     /// </summary>
     public void clearAssignedChunkData() {
       isActive = false;
+#if DEBUG
       recordEvent($"clearing data for chunk: {chunkData?.id.ToString() ?? "NONE"}");
+#endif
       if (chunkData != null) {
+#if DEBUG
         chunkData.recordEvent($"clearing chunkcontroller data");
+#endif
       }
       chunkLocation = default;
       meshFilter.mesh.Clear();
@@ -173,7 +189,9 @@ namespace Evix.Controllers {
     /// <returns></returns>
     public bool checkColliderIsBaked() {
       if (colliderBakerHandler.IsCompleted) {
+#if DEBUG
         recordEvent($"collider finished bakeing for {chunkLocation}");
+#endif
         return true;
       }
 
@@ -183,6 +201,7 @@ namespace Evix.Controllers {
     #endregion
 
     #region IRecorded Interface
+#if DEBUG
 
     /// <summary>
     /// A history of events recorded by this chunk
@@ -208,7 +227,7 @@ namespace Evix.Controllers {
         ? eventHistory.ToArray()
         : eventHistory.GetRange(eventHistory.Count - (int)lastX, (int)lastX).ToArray();
     }
-
+#endif
     #endregion
   }
 

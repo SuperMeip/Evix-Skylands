@@ -184,6 +184,8 @@ namespace Evix.Managers {
     #endregion
   }
 
+
+  #region Unity Custom Inspector
 #if UNITY_EDITOR
   /// <summary>
   /// Show off the chunk ID
@@ -208,4 +210,5 @@ namespace Evix.Managers {
     }
   }
 #endif
+  #endregion
 }

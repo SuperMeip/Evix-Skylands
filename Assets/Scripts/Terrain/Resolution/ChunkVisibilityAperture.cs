@@ -28,13 +28,17 @@ namespace Evix.Terrain.Resolution {
         if (adjustment.type == FocusAdjustmentType.InFocus) {
           // if it's already visible, we can drop it from the job queue
           if (chunk.currentResolution == Chunk.Resolution.Visible) {
+#if DEBUG
             chunk.recordEvent($"Chunk invalid for Visible Chunk queue, already at {chunk.currentResolution} resolution");
+#endif
             return false;
           }
 
           // if the chunk's is loaded and the mesh has been generated, and it's empty then we can just set it as visible
           if (chunk.currentResolution >= Chunk.Resolution.Meshed && chunk.meshIsEmpty) {
+#if DEBUG
             chunk.recordEvent($"dropped from ChunkVisibilityAperture, chunk is meshed and mesh is empty");
+#endif
             if (chunk.currentResolution == Chunk.Resolution.Visible) {
               return false;
             } else if (chunk.tryToLock(Chunk.Resolution.Visible)) {
@@ -50,7 +54,9 @@ namespace Evix.Terrain.Resolution {
         } else {
           // if it's already out focus enough, we can drop it from the job queue
           if (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution <= Chunk.Resolution.Meshed) {
+#if DEBUG
             chunk.recordEvent($"Chunk invalid for inVisible Chunk queue, already at {chunk.currentResolution} resolution");
+#endif
             return false;
           }
 

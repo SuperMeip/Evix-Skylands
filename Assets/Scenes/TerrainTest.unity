@@ -852,16 +852,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4087288308657376914, guid: 520ba718037df2649b7fe2dadc18fae2,
-        type: 3}
-      propertyPath: m_FocalLength
-      value: 50
-      objectReference: {fileID: 0}
-    - target: {fileID: 4087288308657376914, guid: 520ba718037df2649b7fe2dadc18fae2,
-        type: 3}
-      propertyPath: field of view
-      value: 26.991467
-      objectReference: {fileID: 0}
     - target: {fileID: 4178056028373221936, guid: 520ba718037df2649b7fe2dadc18fae2,
         type: 3}
       propertyPath: selectedBlockOutlineObject

@@ -39,7 +39,9 @@ namespace Evix.Terrain.Resolution {
         if (adjustment.type == FocusAdjustmentType.InFocus) {
           // if it's already meshed, we can drop it from the job queue
           if (chunk.currentResolution == Chunk.Resolution.Meshed && adjustment.resolution == Chunk.Resolution.Meshed) {
+#if DEBUG
             chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, already at {chunk.currentResolution} resolution");
+#endif
             return false;
           }
 
@@ -63,7 +65,9 @@ namespace Evix.Terrain.Resolution {
 
               /// set mesh as empty if we don't need to load it
               if (allBlockingNeighborsAreSolid && chunk.tryToLock(Chunk.Resolution.Meshed)) {
+#if DEBUG
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, solid chunk is hidden");
+#endif
                 chunk.setMesh(default);
                 chunk.unlock(Chunk.Resolution.Meshed);
 
@@ -91,7 +95,9 @@ namespace Evix.Terrain.Resolution {
               
               /// set mesh as empty if we don't need to load it
               if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock(Chunk.Resolution.Meshed)) {
+#if DEBUG
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, chunk is empty and has no dependent neighbors");
+#endif
                 chunk.setMesh(default);
                 chunk.unlock(Chunk.Resolution.Meshed);
 
@@ -104,7 +110,9 @@ namespace Evix.Terrain.Resolution {
           return true;
           /// if this chunk is going out of focus and wasn't loaded to meshed level, we can just drop it.  
         } else if (chunk.currentResolution < Chunk.Resolution.Meshed) {
+#if DEBUG
           chunk.recordEvent($"Chunk invalid for out of focus MeshGenerationAperture queue, chunk is already below meshed resolution at {chunk.currentResolution}");
+#endif
           return false;
         }
       }
@@ -199,7 +207,9 @@ namespace Evix.Terrain.Resolution {
         chunk.clearMesh();
         chunk.unlock(Chunk.Resolution.Meshed);
 
+#if DEBUG
         chunk.recordEvent($"Notifying level manager of cleared mesh");
+#endif
         World.EventSystem.notifyChannelOf(
           new RemoveChunkMeshEvent(adjustment),
           EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates

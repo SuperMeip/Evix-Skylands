@@ -1,6 +1,5 @@
 ﻿using Evix.Terrain.Collections;
 using Evix.Terrain.DataGeneration;
-using System;
 
 namespace Evix.Terrain.Resolution {
   class VoxelDataLoadedAperture : ChunkResolutionAperture {
@@ -22,7 +21,9 @@ namespace Evix.Terrain.Resolution {
           || (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution != Chunk.Resolution.UnLoaded)) {
           return true;
         } else {
+#if DEBUG
           chunk.recordEvent($"dropped from voxel load queue");
+#endif
           return false;
         }
       }

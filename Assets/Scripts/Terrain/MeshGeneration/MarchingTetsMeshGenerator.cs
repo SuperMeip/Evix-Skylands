@@ -282,9 +282,11 @@ namespace Evix.Terrain.MeshGeneration {
 
 				// mark the chunk mesh data
 				Chunk meshedChunk = level.getChunk(adjustment.chunkID);
-				meshedChunk.setMesh(generatedChunkMesh);
+				meshedChunk.setMesh(generatedChunkMesh, adjustment.type == ChunkResolutionAperture.FocusAdjustmentType.Dirty);
 				meshedChunk.unlock(Chunk.Resolution.Meshed);
+#if DEBUG
 				level.getChunk(adjustment.chunkID).recordEvent($"Mesh notification being sent to level terrain manager");
+#endif
 				World.EventSystem.notifyChannelOf(
 					new MeshGenerationAperture.ChunkMeshLoadingFinishedEvent(adjustment, generatedChunkMesh),
 					EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates

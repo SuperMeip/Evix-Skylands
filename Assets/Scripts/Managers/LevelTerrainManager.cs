@@ -157,7 +157,9 @@ namespace Evix.Managers {
       if (chunksWaitingForAFreeController.tryDequeue(out KeyValuePair<float, ChunkResolutionAperture.Adjustment> chunkMeshWaitingForController)) {
         if (tryToAssignMeshedChunkToController(chunkMeshWaitingForController.Value.chunkID, out ChunkController assingedController) && assingedController != null) {
           chunksToMesh.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), assingedController);
+#if DEBUG
           level.getChunk(chunkMeshWaitingForController.Value.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
+#endif
         } else {
           chunksWaitingForAFreeController.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), chunkMeshWaitingForController.Value);
         }
@@ -167,8 +169,10 @@ namespace Evix.Managers {
       if (chunksToMesh.tryDequeue(out KeyValuePair<float, ChunkController> meshedChunkLocation)) {
         if (meshedChunkLocation.Value.isActive) {
           meshedChunkLocation.Value.meshChunkWithCurrentData();
+#if DEBUG
         } else {
           meshedChunkLocation.Value.recordEvent($"dropped from chunksToMesh queue, no longer set to any chunk");
+#endif
         }
       }
 
@@ -188,7 +192,9 @@ namespace Evix.Managers {
             chunksToActivate.enqueue(activatedChunkLocation);
           } else {
             // set the chunk visible as, it is visible it just has no mesh
+#if DEBUG
             chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
+#endif
             chunk.setVisible();
             chunk.unlock(Chunk.Resolution.Visible);
           }
@@ -204,7 +210,9 @@ namespace Evix.Managers {
         // if there's no controller found then it was never set active and we can just drop it too
         } else {
           Chunk chunkToSetInvisible = level.getChunk(deactivatedChunkLocation.Value);
+#if DEBUG
           chunkToSetInvisible.recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
+#endif
           chunkToSetInvisible.setVisible(false);
           chunkToSetInvisible.unlock(Chunk.Resolution.Visible);
         }
@@ -261,27 +269,37 @@ namespace Evix.Managers {
           }
           if (tryToAssignMeshedChunkToController(cmfle.adjustment.chunkID, out ChunkController assignedController) && assignedController != null) {
             chunksToMesh.enqueue(level.getPriorityForAdjustment(cmfle.adjustment), assignedController);
+#if DEBUG
             level.getChunk(cmfle.adjustment.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
+#endif
           } else {
             chunksWaitingForAFreeController.enqueue(level.getPriorityForAdjustment(cmfle.adjustment), cmfle.adjustment);
+#if DEBUG
             level.getChunk(cmfle.adjustment.chunkID).recordEvent($"added to chunksWaitingForAFreeController Level Manager queue");
+#endif
           }
           break;
         // when the level finishes loading a chunk's mesh. Render it in world
         case ChunkVisibilityAperture.SetChunkVisibleEvent scae:
           chunksToActivate.enqueue(level.getPriorityForAdjustment(scae.adjustment), scae.adjustment.chunkID);
+#if DEBUG
           level.getChunk(scae.adjustment.chunkID).recordEvent($"added to chunksToActivate Level Manager queue");
+#endif
           break;
         case ChunkVisibilityAperture.SetChunkInvisibleEvent scie:
           chunksToDeactivate.enqueue(level.getPriorityForAdjustment(scie.adjustment), scie.adjustment.chunkID);
+#if DEBUG
           level.getChunk(scie.adjustment.chunkID).recordEvent($"added to chunksToDeactivate Level Manager queue");
+#endif
           break;
         case MeshGenerationAperture.RemoveChunkMeshEvent rcme:
           if (tryToGetAssignedChunkController(rcme.adjustment.chunkID, out ChunkController assignedChunkController)) {
             chunksToDemesh.enqueue(level.getPriorityForAdjustment(rcme.adjustment), assignedChunkController);
+#if DEBUG
             level.getChunk(rcme.adjustment.chunkID).recordEvent($"added to chunksToDemesh Level Manager queue");
           } else {
             level.getChunk(rcme.adjustment.chunkID).recordEvent($"no chunk controller to demesh, dropping from queue");
+#endif
           }
           break;
         default:

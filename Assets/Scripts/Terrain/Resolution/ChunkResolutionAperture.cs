@@ -1,8 +1,8 @@
 using Evix.Terrain.Collections;
 using System;
 using System.Collections;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Evix.Terrain.Resolution {
@@ -57,8 +57,8 @@ namespace Evix.Terrain.Resolution {
     /// <summary>
     /// The priority queue that this aperture manages
     /// </summary>
-    readonly SortedList adjustmentQueue
-      = SortedList.Synchronized(new SortedList(new DuplicateIntComparer()));
+    List<Adjustment> adjustmentQueue
+      = new List<Adjustment>();
 
     /// <summary>
     /// The chunk bounds this aperture is managing
@@ -79,7 +79,7 @@ namespace Evix.Terrain.Resolution {
       IFocusLens lens,
       int managedChunkRadius,
       int managedChunkHeight = 0,
-      float yDistanceWeightMultiplier = 3.0f
+      float yDistanceWeightMultiplier = 5.0f
       ) {
       this.resolution = resolution;
       this.lens = lens;
@@ -91,7 +91,7 @@ namespace Evix.Terrain.Resolution {
       MaxManagedChunkDistance = (int)Math.Sqrt(
         // a[a'^2 + b'^2] squared + b squared 
         distanceSquared + distanceSquared + distanceHeightSquared
-      ) + 1;
+      ) + 5;
     }
 
     #endregion
@@ -142,9 +142,10 @@ namespace Evix.Terrain.Resolution {
         Adjustment waitingAdjustment;
         // get the 0th adjustment
         lock (adjustmentQueue) {
-          waitingAdjustment = (Adjustment)adjustmentQueue.GetByIndex(index);
+          waitingAdjustment = adjustmentQueue[index];
           adjustmentQueue.RemoveAt(index);
         }
+        index--;
 
         if (!isWithinManagedBounds(waitingAdjustment) || !isValid(waitingAdjustment, out Chunk validatedChunk)) {
           continue;
@@ -157,13 +158,15 @@ namespace Evix.Terrain.Resolution {
           && validatedChunk.tryToLock(waitingAdjustment.resolution)
         ) {
           jobHandle = new ApetureJobHandle(getJob(waitingAdjustment));
+#if DEBUG
           validatedChunk.recordEvent($"Aperture Type {GetType()} running job {jobHandle.job.GetType()} for adjustment: {waitingAdjustment}");
-
+#endif
           return true;
           // if it's not ready, or there's a conflict requeue
           // if there's a conflict, it means a job is already running on this chunk and we should wait for that one to finish
         } else {
-          adjustmentQueue.Add(getPriority(waitingAdjustment, focus), waitingAdjustment);
+          // shove it back into the sort where we got it from
+          adjustmentQueue.Insert(index + 1, waitingAdjustment);
         }
       }
 
@@ -176,13 +179,15 @@ namespace Evix.Terrain.Resolution {
     /// <param name="chunkID"></param>
     /// <param name="focus"></param>
     public void addDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
-      adjustmentQueue.Add(0, new Adjustment(
+      adjustmentQueue.Insert(0, new Adjustment(
         chunkID,
         FocusAdjustmentType.Dirty,
         resolution,
         focus.id
       ));
+#if DEBUG
       lens.level.getChunk(chunkID).recordEvent($"Apeture type {GetType()} for {resolution} resolution has been notified this chunk is dirty");
+#endif
     }
 
     /// <summary>
@@ -191,7 +196,6 @@ namespace Evix.Terrain.Resolution {
     /// <param name="newFocalPoint"></param>
     public int updateAdjustmentsForFocusInitilization(ILevelFocus newFocalPoint) {
       List<Adjustment> chunkAdjustments = new List<Adjustment>();
-      int newAdjustmentCount = 0;
       managedChunkBounds = getManagedChunkBounds(newFocalPoint);
 
       /// just get the new in focus chunks for the whole managed area
@@ -199,13 +203,16 @@ namespace Evix.Terrain.Resolution {
         chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, newFocalPoint.id));
       });
 
-      foreach (Adjustment adjustment in chunkAdjustments) {
-        adjustmentQueue.Add(getPriority(adjustment, newFocalPoint), adjustment);
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
-        newAdjustmentCount++;
-      }
+      adjustmentQueue.AddRange(chunkAdjustments);
+      sortQueueAround(newFocalPoint);
 
-      return newAdjustmentCount;
+#if DEBUG
+      foreach (Adjustment adjustment in chunkAdjustments) {
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
+      }
+#endif
+
+      return chunkAdjustments.Count;
     }
 
     /// <summary>
@@ -228,12 +235,13 @@ namespace Evix.Terrain.Resolution {
 
       /// update the new managed bounds
       managedChunkBounds = newManagedChunkBounds;
-
-      /// enqueue each new adjustment
+      adjustmentQueue.AddRange(chunkAdjustments);
+      sortQueueAround(focus);
+#if DEBUG
       foreach (Adjustment adjustment in chunkAdjustments) {
-        adjustmentQueue.Add(getPriority(adjustment, focus), adjustment);
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
       }
+#endif
     }
 
     /// <summary>
@@ -241,7 +249,12 @@ namespace Evix.Terrain.Resolution {
     /// Lower is better(?)
     /// </summary>
     /// <returns></returns>
-    public int getPriority(Adjustment adjustment, ILevelFocus focus) {
+    public virtual int getPriority(Adjustment adjustment, ILevelFocus focus) {
+      /// dirty are top priority
+      if (adjustment.type == FocusAdjustmentType.Dirty) {
+        return 0;
+      }
+
       int distancePriority = adjustment.type == FocusAdjustmentType.InFocus
       ? (int)adjustment.chunkID.distanceYFlattened(focus.currentChunkID, YWeightMultiplier)
       : MaxManagedChunkDistance - (int)adjustment.chunkID.distanceYFlattened(focus.currentChunkID, YWeightMultiplier);
@@ -250,27 +263,13 @@ namespace Evix.Terrain.Resolution {
     }
 
     /// <summary>
-    /// Try to add the value to the adjustment queue
+    /// Sort the queue by priority around the given focus
     /// </summary>
-    /// <returns></returns>
-    bool tryToAddToQueue(Adjustment adjustment, ILevelFocus focus, int? priorityOverride = null) {
-      if (adjustmentQueue.ContainsValue(adjustment)) {
-        return false;
+    /// <param name="focus"></param>
+    protected void sortQueueAround(ILevelFocus focus) {
+      lock (adjustmentQueue) {
+        adjustmentQueue = adjustmentQueue.OrderBy(adjustment => getPriority(adjustment, focus)).ToList();
       }
-
-      // if this isn't a dirty update, and we already have the opposite update in the queue, remove that one
-      if (adjustment.type != FocusAdjustmentType.Dirty) {
-        Adjustment oppositeAdjustment = adjustment.Opposite;
-        if (adjustmentQueue.ContainsValue(oppositeAdjustment)) {
-          lock (adjustmentQueue) {
-            int index = adjustmentQueue.IndexOfValue(adjustment);
-            adjustmentQueue.RemoveAt(index);
-          }
-        }
-      }
-
-      adjustmentQueue.Add(priorityOverride ?? getPriority(adjustment, focus), adjustment);
-      return true;
     }
 
 
@@ -476,7 +475,9 @@ namespace Evix.Terrain.Resolution {
       if ((!chunkIsInFocusBounds && adjustment.type == FocusAdjustmentType.InFocus)
         || (chunkIsInFocusBounds && adjustment.type == FocusAdjustmentType.OutOfFocus)
       ) {
+#if DEBUG
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Aperture Type {GetType()} has dropped out of bounds adjustment: {adjustment}");
+#endif
         return false;
       }
 
