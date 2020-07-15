@@ -42,28 +42,37 @@ namespace Evix.Tools {
     }
 
     void Update() {
-      udpdateCurrentlySelectedBlock();
-      checkIfBlockShouldBeDeleted();
+      udpdateCurrentlySelectedBlock(out RaycastHit hit);
+      checkIfBlockShouldBeDeleted(hit.normal/* - camera.transform.forward*/);
+      checkIfBlockShouldBeAdded();
     }
 
     /// <summary>
     /// Highlight the currently moused over voxel
     /// </summary>
-    void udpdateCurrentlySelectedBlock() {
+    void udpdateCurrentlySelectedBlock(out RaycastHit hit) {
       Ray ray = camera.ScreenPointToRay(new Vector3(camera.pixelWidth / 2, camera.pixelHeight / 2, 0));
 
-      if (Physics.Raycast(ray, out RaycastHit hit, 25)) {
-        currentlySelectedVoxelPosition = hit.point - hit.normal;
-        selectedBlockOutlineObject.transform.position = currentlySelectedVoxelPosition;
+      if (Physics.Raycast(ray, out hit, 25)) {
+        selectedBlockOutlineObject.transform.position = currentlySelectedVoxelPosition = new Coordinate(hit.point - camera.transform.forward);
       }
     }
 
     /// <summary>
     /// Remove the block and mark the chunk dirty on left click
     /// </summary>
-    void checkIfBlockShouldBeDeleted() {
+    void checkIfBlockShouldBeDeleted(Vector3 addOnDirecton = default) {
       if (Input.GetMouseButtonDown(0)) {
-        removeBlock(currentlySelectedVoxelPosition);
+        removeBlock(currentlySelectedVoxelPosition.vec3 + addOnDirecton);
+      }
+    }
+
+    /// <summary>
+    /// Remove the block and mark the chunk dirty on left click
+    /// </summary>
+    void checkIfBlockShouldBeAdded(Vector3 addOnDirecton = default) {
+      if (Input.GetMouseButtonDown(1)) {
+        addBlock(currentlySelectedVoxelPosition.vec3 + addOnDirecton, TerrainBlock.Types.Stone);
       }
     }
 
@@ -71,18 +80,18 @@ namespace Evix.Tools {
     /// Remove a block on a button press
     /// </summary>
     /// <param name="hitBlock"></param>
-    void removeBlock(Coordinate hitCoordinate) {
-      World.Current.activeLevel[hitCoordinate] = Terrain.TerrainBlock.Types.Air.Id;
-      World.Current.activeLevel.markChunkDirty(Chunk.IDFromWorldLocation(hitCoordinate.x, hitCoordinate.y, hitCoordinate.z));
+    void removeBlock(Coordinate voxelToChange) {
+      World.Current.activeLevel[voxelToChange] = Terrain.TerrainBlock.Types.Air.Id;
+      World.Current.activeLevel.markChunkDirty(Chunk.IDFromWorldLocation(voxelToChange.x, voxelToChange.y, voxelToChange.z));
     }
 
     /// <summary>
     /// Remove a block on a button press
     /// </summary>
     /// <param name="hitBlock"></param>
-    void addBlock(Coordinate hitCoordinate, TerrainBlock.Type blockType) {
-      World.Current.activeLevel[hitCoordinate] = blockType.Id;
-      World.Current.activeLevel.markChunkDirty(Chunk.IDFromWorldLocation(hitCoordinate.x, hitCoordinate.y, hitCoordinate.z));
+    void addBlock(Coordinate voxelToChange, TerrainBlock.Type blockType) {
+      World.Current.activeLevel[voxelToChange] = blockType.Id;
+      World.Current.activeLevel.markChunkDirty(Chunk.IDFromWorldLocation(voxelToChange.x, voxelToChange.y, voxelToChange.z));
     }
   }
 }

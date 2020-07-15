@@ -85,7 +85,7 @@ namespace Evix.Terrain {
       /// </summary>
       /// <param name="id"></param>
       /// <returns></returns>
-      public static Voxels.Voxel.Type Get(byte id) {
+      public static Type Get(byte id) {
         return All[id];
       }
     }

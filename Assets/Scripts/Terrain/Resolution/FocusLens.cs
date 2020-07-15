@@ -1,5 +1,6 @@
 using Evix.Events;
 using Evix.Terrain.Collections;
+using Evix.Terrain.MeshGeneration;
 using System.Collections.Generic;
 
 namespace Evix.Terrain.Resolution {
@@ -182,6 +183,14 @@ namespace Evix.Terrain.Resolution {
       if (@event is Level.ChunkDirtiedEvent cde) {
         foreach(ChunkResolutionAperture aperture in apeturesByPriority) {
           if (aperture.resolution == Chunk.Resolution.Meshed && aperture.isWithinManagedBounds(cde.chunkID)) {
+            // throw in jobs to updat the neighbors
+            // @TODO: are these the right neighbors?
+            MarchingTetsMeshGenerator.ForEachDirtiedNeighbor(
+              cde.chunkID,
+              level,
+              neighboringChunk => aperture.addDirtyChunk(neighboringChunk.id, focus)
+            );
+            // then throw in the current chunk, so it's at position 0
             aperture.addDirtyChunk(cde.chunkID, focus);
           }
         }

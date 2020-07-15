@@ -129,6 +129,17 @@ namespace Evix.Terrain.Collections {
     }
 
     /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="z"></param>
+    /// <returns></returns>
+    public static Coordinate IDFromWorldLocation(Coordinate worldLocation) {
+      return IDFromWorldLocation(worldLocation.x, worldLocation.y, worldLocation.z); ;
+    }
+
+    /// <summary>
     /// Get the world location of the 0,0,0 of the chunk with this id
     /// </summary>
     /// <returns></returns>

@@ -53,6 +53,12 @@ namespace Evix.Voxels {
       }
 
       /// <summary>
+      /// Get the block type name
+      /// </summary>
+      public string Name 
+        => GetType().Name;
+
+      /// <summary>
       /// If this block type is solid block or not
       /// </summary>
       public bool IsSolid {

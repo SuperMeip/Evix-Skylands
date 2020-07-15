@@ -14,6 +14,11 @@ namespace Evix {
 		public const float BlockSize = 1.0f;
 
 		/// <summary>
+		/// Y value ued as Sea level across worlds
+		/// </summary>
+		public const int SeaLevel = 100;
+
+		/// <summary>
 		/// Seconds in an in game hour
 		/// </summary>
 		public const int HourInSeconds = 60;

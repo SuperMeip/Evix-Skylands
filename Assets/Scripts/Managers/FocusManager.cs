@@ -193,7 +193,7 @@ namespace Evix.Managers {
   [CustomEditor(typeof(FocusManager))]
   class FocusCustomInspoector : Editor {
     public override void OnInspectorGUI() {
-      EditorGUILayout.LabelField("Focus Info:");
+      EditorGUILayout.LabelField("Focus Info:", "-----");
 
       // Just info about the chunk
       EditorGUI.BeginDisabledGroup(true);
@@ -206,7 +206,6 @@ namespace Evix.Managers {
       if (GUILayout.Button("Print Current Chunk Edit History Log")) {
         LevelDataTester.PrintChunkDataRecords(focus.currentChunkID);
       }
-      DrawDefaultInspector();
     }
   }
 #endif

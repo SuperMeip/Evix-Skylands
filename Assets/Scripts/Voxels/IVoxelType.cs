@@ -15,6 +15,13 @@ namespace Evix.Voxels {
     }
 
     /// <summary>
+    /// The name of the type of voxel
+    /// </summary>
+    string Name {
+      get;
+    }
+
+    /// <summary>
     /// If this voxel type is solid or not
     /// </summary>
     bool IsSolid {

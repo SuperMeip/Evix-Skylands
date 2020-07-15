@@ -75,14 +75,18 @@ namespace Evix.Controllers {
     void addSatelite(AstrologicalObjectController sateliteController) {
       /// parent this to the child satelite and add it's pivot
       astrologicalObjectData.satelites.Add(sateliteController.astrologicalObjectData);
+
+      // create the pivot, make sure it's in the same place as this, the parent
       GameObject satelitePivot = new GameObject($"{sateliteController.gameObject.name}'s orbital pivot");
       satelitePivot.transform.position = transform.position;
       satelitePivot.transform.parent = transform;
+
+      // set the satelite's controller's parent to the new pivot
       sateliteController.gameObject.transform.parent = satelitePivot.transform;
       sateliteController.orbitalPivot = satelitePivot;
 
       /// move the satelite into the inital position for it's orbital axis
-      sateliteController.gameObject.transform.position 
+      sateliteController.gameObject.transform.position
         = satelitePivot.transform.position 
           + satelitePivot.transform.forward
             * sateliteController.astrologicalObjectData.distanceFromParent 
@@ -100,7 +104,7 @@ namespace Evix.Controllers {
         Handles.DrawWireDisc(
           orbitalPivot.transform.position,
           astrologicalObjectData.parent?.isOrbiting ?? false
-            ? orbitalPivot.transform.up 
+            ? orbitalPivot.transform.up
             : orbitalPivot.transform.rotation * astrologicalObjectData.orbitalAxis,
           astrologicalObjectData.distanceFromParent * StarMap.AstrologicalUnit
         );

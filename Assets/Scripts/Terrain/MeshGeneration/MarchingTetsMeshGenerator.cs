@@ -4,6 +4,7 @@ using Evix.Voxels;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Evix.Terrain.MeshGeneration {
 
@@ -34,6 +35,19 @@ namespace Evix.Terrain.MeshGeneration {
 		Directions.East.Offset + Directions.Above.Offset,
 		Directions.East.Offset + Directions.North.Offset + Directions.Above.Offset
 	};
+
+		/// <summary>
+		/// The chunk neighbors needed to be loaded to succesfully march gen a chunk mesh
+		/// </summary>
+		public static Coordinate[] NeighborsToReLoadOnDirty = new Coordinate[] {
+			Directions.West.Offset,
+			Directions.Below.Offset,
+			Directions.South.Offset,
+			Directions.West.Offset + Directions.South.Offset,
+			Directions.Below.Offset + Directions.South.Offset,
+			Directions.West.Offset + Directions.Below.Offset,
+			Directions.West.Offset + Directions.South.Offset + Directions.Below.Offset
+		}.Concat(NecessaryLoadedChunkNeighborOffsets).ToArray();
 
 		#region Data Preparation
 
@@ -159,11 +173,11 @@ namespace Evix.Terrain.MeshGeneration {
 		/// <summary>
 		/// Run logic on each chunk neighbor required to march render the given chunk.
 		/// </summary>
-		/// <param name="chunkID"></param>
+		/// <param name="newlyDirtyChunkID"></param>
 		/// <param name="level"></param>
-		public static void ForEachRequiredNeighbor(Coordinate chunkID, Level level, Action<Chunk> action) {
-			foreach (Coordinate neighborOffset in NecessaryLoadedChunkNeighborOffsets) {
-				Coordinate neighborKey = chunkID + neighborOffset;
+		public static void ForEachDirtiedNeighbor(Coordinate newlyDirtyChunkID, Level level, Action<Chunk> action) {
+			foreach (Coordinate neighborOffset in NeighborsToReLoadOnDirty) {
+				Coordinate neighborKey = newlyDirtyChunkID + neighborOffset;
 				Chunk neighbor = level.getChunk(neighborKey);
 				action(neighbor);
 			}

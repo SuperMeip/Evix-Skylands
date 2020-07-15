@@ -81,8 +81,20 @@ namespace Evix {
 			set {
 				if (chunks.TryGetValue(Chunk.IDFromWorldLocation(x, y, z), out Chunk chunk)) {
 					chunk[x & 0xF, y & 0xF, z & 0xF] = value;
+					return;
+				// if the chunk doesn't exist, don't make a new one for an empty value
+				} else if (value == 0) {
+					return;
+				}
+
+				// if no chunk exists, and it's in bounds, we need to make the new chunk
+				Coordinate chunkID = (new Coordinate(x, y, z) / Chunk.Diameter);
+				if (chunkID.isWithin(chunkBounds)) {
+					Chunk newChunk = new Chunk(chunkID);
+					chunks.Add(chunkID, newChunk);
+					newChunk[x & 0xF, y & 0xF, z & 0xF] = value;
 				} else {
-					World.Debugger.logError($"Tried to set a value in non existent chunk {x}, {y}, {z}");
+					World.Debugger.logError($"Tried to set a value in out of bounds chunk {x}, {y}, {z}");
 				}
 			}
 		}

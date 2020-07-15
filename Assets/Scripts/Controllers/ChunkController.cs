@@ -272,7 +272,7 @@ namespace Evix.Controllers {
   class FocusCustomInspoector : Editor {
     public override void OnInspectorGUI() {
       /// Just info about the chunk
-      EditorGUILayout.LabelField("Chunk Info:");
+      EditorGUILayout.LabelField("Chunk Info:", "-----");
       EditorGUI.BeginDisabledGroup(true);
       ChunkController chunkController = target as ChunkController;
       EditorGUILayout.Vector3Field("Current Controlled Chunk ID", chunkController.chunkLocation.vec3);

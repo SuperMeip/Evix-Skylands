@@ -24,6 +24,16 @@ namespace Evix.Managers {
     public Color brightestSkyPerSun;
 
     /// <summary>
+    /// The brightest sky color a single sun can make it.
+    /// </summary>
+    public Color maxSunsetColorPerSun;
+
+    /// <summary>
+    /// The brightest sky color a single sun can make it.
+    /// </summary>
+    //public Color maxSunriseColorPerSun;
+
+    /// <summary>
     /// How often to check the sky brightness in in game hours
     /// </summary>
     public float timeCheckFrequencey = 1.0f;
@@ -49,16 +59,26 @@ namespace Evix.Managers {
       if (timeCheckTimer >= timeCheckFrequencey * World.HourInSeconds) {
         timeCheckTimer = 0;
         Color skyColor = baseColor;
+        int lerpCount = suns.Length;
         foreach (AstrologicalObjectController sun in suns) {
           // get how high the sun is in the sky vs it's max.
-          float heightPercentage = sun.transform.position.y // current heitgh
+          float heightPercentage = (sun.transform.position.y - World.SeaLevel) // current heitgh above sea level
             / (sun.astrologicalObjectData.distanceFromParent * StarMap.AstrologicalUnit); // divided by the max height of this sun possible
-          // add the colors together for each sun
+
+          // add the basic time of day colors together for each sun
           skyColor += Color.Lerp(baseColor, brightestSkyPerSun, heightPercentage);
+
+          // calculate if we're within sunset and add that color
+          float sunsetHeightPercent = 0.3f;
+          if (heightPercentage <= sunsetHeightPercent && heightPercentage >= -sunsetHeightPercent) {
+            float percentOfSunsetAttained = 1 - Mathf.Abs(heightPercentage).scale(1, 0, 0.3f, 0);
+            skyColor += Color.Lerp(baseColor, maxSunsetColorPerSun, percentOfSunsetAttained);
+            lerpCount++;
+          }
         }
 
         // lerp them
-        skyColor /= suns.Length;
+        skyColor /= lerpCount;
 
         // set the skuybox color to the newo ne
         skybox.SetColor("_Tint", skyColor);

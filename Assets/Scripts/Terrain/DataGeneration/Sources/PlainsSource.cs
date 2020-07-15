@@ -5,7 +5,7 @@
     /// <summary>
     /// The base sea level for the plain
     /// </summary>
-    public int seaLevel = 160;
+    public int seaLevel = World.SeaLevel;
 
     /// <summary>
     /// The maximim hill height

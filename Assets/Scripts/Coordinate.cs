@@ -63,6 +63,16 @@ namespace Evix {
       this.z = z;
     }
 
+    /// <summary>
+    /// Coordinate from vec3
+    /// </summary>
+    /// <param name="position"></param>
+    public Coordinate(Vector3 position) {
+      x = (int)position.x;
+      y = (int)position.y;
+      z = (int)position.z;
+    }
+
     /// see #serialization for more
     #endregion
 
