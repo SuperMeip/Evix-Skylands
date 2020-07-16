@@ -27,14 +27,14 @@ namespace Evix.Terrain.MeshGeneration {
 		/// The chunk neighbors needed to be loaded to succesfully march gen a chunk mesh
 		/// </summary>
 		public static Coordinate[] NecessaryLoadedChunkNeighborOffsets = new Coordinate[] {
-		Directions.East.Offset,
-		Directions.Above.Offset,
-		Directions.North.Offset,
-		Directions.East.Offset + Directions.North.Offset,
-		Directions.Above.Offset + Directions.North.Offset,
-		Directions.East.Offset + Directions.Above.Offset,
-		Directions.East.Offset + Directions.North.Offset + Directions.Above.Offset
-	};
+			Directions.East.Offset,
+			Directions.Above.Offset,
+			Directions.North.Offset,
+			Directions.East.Offset + Directions.North.Offset,
+			Directions.Above.Offset + Directions.North.Offset,
+			Directions.East.Offset + Directions.Above.Offset,
+			Directions.East.Offset + Directions.North.Offset + Directions.Above.Offset
+		};
 
 		/// <summary>
 		/// The chunk neighbors needed to be loaded to succesfully march gen a chunk mesh
@@ -79,6 +79,32 @@ namespace Evix.Terrain.MeshGeneration {
 		#region Mesh Generation
 
 		/// <summary>
+		/// Generate a marched mesh for the given voxel collection
+		/// </summary>
+		/// <param name="voxels"></param>
+		/// <param name="voxelCollectionDiameter"></param>
+		/// <returns></returns>
+		public static ChunkMeshData GenerateMesh(byte[] voxels, int voxelCollectionDiameter) {
+			/// March over the voxels
+			MarchOverVoxels(
+				voxels,
+				out List<Vector3> outVerticies,
+				out List<int> outTriangles,
+				out List<Color> outColors,
+				out List<Vector2> outUVs,
+				voxelCollectionDiameter
+			); ;
+
+			/// Make the chunk mesh
+			return new ChunkMeshData() {
+				vertices = outVerticies,
+				triangles = outTriangles,
+				colors = outColors,
+				uvs = outUVs
+			};
+		}
+
+		/// <summary>
 		/// March over the set of blocks and generate the needed mesh data
 		/// </summary>
 		/// <param name="voxels">The voxels to itterate over</param>
@@ -87,7 +113,9 @@ namespace Evix.Terrain.MeshGeneration {
 			byte[] voxels,
 			out List<Vector3> outVerticies,
 			out List<int> outTriangles,
-			out List<Color> outColors
+			out List<Color> outColors,
+			out List<Vector2> outUVs,
+			int marchDiameter = MarchDiameter
 		) {
 			int vertexIndex = 0;
 			Vector3[] blockEdgeVerticies = new Vector3[12];
@@ -95,9 +123,10 @@ namespace Evix.Terrain.MeshGeneration {
 			List<Vector3> verticies = new List<Vector3>();
 			List<int> triangles = new List<int>();
 			List<Color> colors = new List<Color>();
+			List<Vector2> uvs = new List<Vector2>();
 
 			// March over each point
-			Coordinate.Zero.until(new Coordinate(Chunk.Diameter), (currentVoxelLocation) => {
+			Coordinate.Zero.until(new Coordinate(marchDiameter - 1), currentVoxelLocation => {
 				int blockMask = 0;
 				IVoxelType[] blockTypes = new IVoxelType[Octants.All.Length];
 				Vector3[] blockVertexLocations = new Vector3[Octants.All.Length];
@@ -106,7 +135,7 @@ namespace Evix.Terrain.MeshGeneration {
 				foreach (Octants.Octant octant in Octants.All) {
 					Coordinate blockVertexLocation = currentVoxelLocation + octant.Offset;
 					blockVertexLocations[octant.Value] = blockVertexLocation.vec3 * BlockSize;
-					blockTypes[octant.Value] = TerrainBlock.Types.Get(voxels[blockVertexLocation.flatten(MarchDiameter)]);
+					blockTypes[octant.Value] = TerrainBlock.Types.Get(voxels[blockVertexLocation.flatten(marchDiameter)]);
 
 					// if this vertex is solid, mark it
 					if (blockTypes[octant.Value].IsSolid) {
@@ -146,16 +175,19 @@ namespace Evix.Terrain.MeshGeneration {
 					verticies.Add(blockEdgeVerticies[rowOfTriangles[currentTriangleStartPointIndex + 0]]);
 					colors.Add(blockEdgeVertexUVValues[rowOfTriangles[currentTriangleStartPointIndex + 0]]);
 					triangles.Add(vertexIndex);
+					uvs.Add(new Vector2(1, 0));
 					vertexIndex++;
 
 					verticies.Add(blockEdgeVerticies[rowOfTriangles[currentTriangleStartPointIndex + 1]]);
 					colors.Add(blockEdgeVertexUVValues[rowOfTriangles[currentTriangleStartPointIndex + 1]]);
 					triangles.Add(vertexIndex);
+					uvs.Add(new Vector2(0, 0));
 					vertexIndex++;
 
 					verticies.Add(blockEdgeVerticies[rowOfTriangles[currentTriangleStartPointIndex + 2]]);
 					colors.Add(blockEdgeVertexUVValues[rowOfTriangles[currentTriangleStartPointIndex + 2]]);
 					triangles.Add(vertexIndex);
+					uvs.Add(new Vector2(0, 1));
 					vertexIndex++;
 				}
 			});
@@ -164,6 +196,7 @@ namespace Evix.Terrain.MeshGeneration {
 			outVerticies = verticies;
 			outTriangles = triangles;
 			outColors = colors;
+			outUVs = uvs;
 		}
 
 		#endregion
@@ -281,7 +314,8 @@ namespace Evix.Terrain.MeshGeneration {
 						voxels,
 						out List<Vector3> generatedVerticies,
 						out List<int> generatedTriangles,
-						out List<Color> generatedColors
+						out List<Color> generatedColors,
+						out List<Vector2> generatedUVs
 					);
 
 					/// if we have verts, set up the new mesh
@@ -289,7 +323,8 @@ namespace Evix.Terrain.MeshGeneration {
 						generatedChunkMesh = new ChunkMeshData() {
 							vertices = generatedVerticies,
 							triangles = generatedTriangles,
-							colors = generatedColors
+							colors = generatedColors,
+							uvs = generatedUVs
 						};
 					}
 				}

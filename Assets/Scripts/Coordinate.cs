@@ -63,16 +63,6 @@ namespace Evix {
       this.z = z;
     }
 
-    /// <summary>
-    /// Coordinate from vec3
-    /// </summary>
-    /// <param name="position"></param>
-    public Coordinate(Vector3 position) {
-      x = (int)position.x;
-      y = (int)position.y;
-      z = (int)position.z;
-    }
-
     /// see #serialization for more
     #endregion
 
@@ -545,6 +535,43 @@ namespace Evix {
           action(coordinate);
         }
       });
+    }
+
+    /// <summary>
+    /// Round a vector3 to a coordinate location
+    /// </summary>
+    /// <param name="location"></param>
+    /// <returns></returns>
+    public static Coordinate Round(this Vector3 location) {
+      return new Coordinate(
+        Mathf.RoundToInt(location.x),
+        Mathf.RoundToInt(location.y),
+        Mathf.RoundToInt(location.z)
+      );
+    }
+
+    /// <summary>
+    /// Snap a vector 3 to the nearest axis.
+    /// </summary>
+    /// <param name="vector"></param>
+    /// <param name="snapAngle"></param>
+    /// <returns></returns>
+    public static Vector3 SnapToNearestAxis(this Vector3 vector) {
+      float absX = Mathf.Abs(vector.x);
+      float absY = Mathf.Abs(vector.y);
+      float absZ = Mathf.Abs(vector.z);
+      /// for whichiver value is largest, we use that vector, negative or positive
+      if (absX > absY && absX > absZ) {
+        return new Vector3(vector.x > 0 ? 1 : -1 , 0, 0);
+      }
+      if (absY > absX && absY > absZ) {
+        return new Vector3(0, vector.y > 0 ? 1 : -1, 0);
+      }
+      if (absZ > absY && absZ > absX) {
+        return new Vector3(0, 0, vector.z > 0 ? 1 : -1);
+      }
+
+      return Vector3.zero;
     }
   }
 

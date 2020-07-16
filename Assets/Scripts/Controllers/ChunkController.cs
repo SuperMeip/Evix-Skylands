@@ -123,6 +123,7 @@ namespace Evix.Controllers {
         meshFilter.mesh.SetVertices(chunkData.meshData.vertices);
         meshFilter.mesh.SetColors(chunkData.meshData.colors);
         meshFilter.mesh.SetTriangles(chunkData.meshData.triangles, 0);
+        meshFilter.mesh.SetUVs(0, chunkData.meshData.uvs);
         meshFilter.mesh.RecalculateNormals();
 
         // move the chunk and update the shared mesh

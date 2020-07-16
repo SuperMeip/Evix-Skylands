@@ -101,8 +101,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ac1c0c928a461f45b88c5ede332f1f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectedBlockOutlineObject: {fileID: 0}
-  camera: {fileID: 4087288308657376914}
+  selectedVoxelCursor: {fileID: 0}
+  povCamera: {fileID: 4087288308657376914}
+  selectedVoxelUpdateDelay: 0.1
 --- !u!114 &4838543949029223345
 MonoBehaviour:
   m_ObjectHideFlags: 0

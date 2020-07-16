@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace Evix.Terrain.MeshGeneration {
 
@@ -22,6 +22,11 @@ namespace Evix.Terrain.MeshGeneration {
     ///  the triangles
     /// </summary>
     public List<int> triangles;
+
+    /// <summary>
+    /// The UVs
+    /// </summary>
+    public List<Vector2> uvs;
 
     /// <summary>
     /// if this mesh is empty
