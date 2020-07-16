@@ -1,7 +1,7 @@
 ﻿Shader "Custom/TerrainEditRemoveGrid"{
   Properties{
       _MainTex("Tint Texture", 2D) = "white" {}
-      _WireFrameTint("Wireframe Tint", Color) = (1, 1, 1, 1)
+      _WireFrameColor("Wireframe Color", Color) = (1, 1, 1, 1)
       _Glossiness("Glossiness", Range(0,1)) = 0.5
       _Metallic("Metallic", Range(0,1)) = 0.0
       _WireframeWidth("Wire Width", Float) = 0.1
@@ -30,7 +30,7 @@
         };
 
         float4 _MainTex;
-        float4 _WireFrameTint;
+        float4 _WireFrameColor;
         float _Glossiness;
         float _Metallic;
         float _WireframeWidth;
@@ -54,6 +54,7 @@
             || IN.uv_MainTex.x >= 1 - _WireframeWidth
             || IN.uv_MainTex.y >= 1 - _WireframeWidth
           ) {
+            o.Albedo = _WireFrameColor;
             o.Alpha = 1;
           } else {
             o.Alpha = distanceFade(IN.position);
