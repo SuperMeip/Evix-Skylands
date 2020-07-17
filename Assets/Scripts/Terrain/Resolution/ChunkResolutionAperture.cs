@@ -91,7 +91,7 @@ namespace Evix.Terrain.Resolution {
       MaxManagedChunkDistance = (int)Math.Sqrt(
         // a[a'^2 + b'^2] squared + b squared 
         distanceSquared + distanceSquared + distanceHeightSquared
-      ) + 5;
+      );
     }
 
     #endregion
@@ -137,7 +137,7 @@ namespace Evix.Terrain.Resolution {
     /// <returns></returns>
     public bool tryToGetNextAdjustmentJob(ILevelFocus focus, out ApetureJobHandle jobHandle) {
       jobHandle = null;
-      int queueBottleneck = 10;
+      int queueBottleneck = 20;
       for (int index = 0; (index < adjustmentQueue.Count) && (queueBottleneck-- > 0); index++) {
         Adjustment waitingAdjustment;
         // get the 0th adjustment

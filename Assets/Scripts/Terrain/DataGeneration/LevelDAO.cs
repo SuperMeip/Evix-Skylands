@@ -68,11 +68,11 @@ namespace Evix.Terrain.DataGeneration {
     /// </summary>
     /// <param name="chunkLocation"></param>
     static public void SaveChunkDataToFile(Coordinate chunkId, string levelName, ChunkSaveData chunkData) {
-      IFormatter formatter = new BinaryFormatter();
+      /*IFormatter formatter = new BinaryFormatter();
       CheckForSaveDirectory(levelName);
       Stream stream = new FileStream(GetChunkDataFileName(chunkId, levelName), FileMode.Create, FileAccess.Write, FileShare.None);
       formatter.Serialize(stream, chunkData);
-      stream.Close();
+      stream.Close();*/
     }
 
     /// <summary>
