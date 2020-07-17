@@ -36,23 +36,26 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="adjustment"></param>
     /// <returns></returns>
-    protected override IAdjustmentJob getJob(Adjustment adjustment) {
+    protected override ApetureJobHandle getJob(Adjustment adjustment) {
+      IAdjustmentJob job;
       if (adjustment.type == FocusAdjustmentType.InFocus) {
         if (LevelDAO.ChunkFileExists(adjustment.chunkID, lens.level)) {
-          return new LevelDAO.LoadChunkDataFromFileJob(adjustment, lens.level);
+          job = new LevelDAO.LoadChunkDataFromFileJob(adjustment, lens.level);
           // if there's no file, we need to generate the chunk data from scratch
         } else {
-          return BiomeMap.GetTerrainGenerationJob(adjustment, lens.level);
+          job = BiomeMap.GetTerrainGenerationJob(adjustment, lens.level);
         }
         /// if it's out of focus, we want to save the chunk to file
       } else {
         Chunk chunkToSave = lens.level.getChunk(adjustment.chunkID);
         if (chunkToSave.currentResolution != Chunk.Resolution.UnLoaded) {
-          return new LevelDAO.SaveChunkDataToFileJob(adjustment, lens.level);
+          job = new LevelDAO.SaveChunkDataToFileJob(adjustment, lens.level);
         } else throw new System.MissingMemberException(
           $"VoxelDataAperture is trying to save chunk data for {adjustment.chunkID} but could not find the chunk data in the level"
         );
       }
+
+      return new ApetureJobHandle(job);
     }
   }
 

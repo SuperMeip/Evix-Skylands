@@ -121,8 +121,8 @@ namespace Evix.Terrain.Resolution {
           jobHandle.schedule();
           if (!jobHandle.runSynchronously) {
             runningJobs.Add(jobHandle);
+            return;
           }
-          return;
         }
       }
     }
@@ -148,11 +148,11 @@ namespace Evix.Terrain.Resolution {
     /// Update each apeture whenever the focus this lens is focused on moves
     /// </summary>
     public void updateAdjustmentsForFocusMovement() {
-      World.Debug.Timer.start("updateAdjustmentsForFocusMovement");
       foreach (IChunkResolutionAperture aperture in apeturesByPriority) {
+        World.Debug.Timer.start("updateAdjustmentsForFocusLocationChange");
         aperture.updateAdjustmentsForFocusLocationChange(focus);
+        World.Debug.Timer.record("updateAdjustmentsForFocusLocationChange", aperture.GetType().Name);
       }
-      World.Debug.Timer.record("updateAdjustmentsForFocusMovement");
     }
 
     #endregion

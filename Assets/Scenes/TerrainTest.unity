@@ -314,7 +314,7 @@ MonoBehaviour:
     y: 11
     z: 500
   testChunkControllerID: -1
-  testTimerName: updateAdjustmentsForFocusMovement
+  testTimerName: updateAdjustmentsForFocusLocationChange
 --- !u!1 &1273426846
 GameObject:
   m_ObjectHideFlags: 0

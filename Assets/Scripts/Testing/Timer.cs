@@ -52,10 +52,10 @@ namespace Evix.Testing {
       timers.TryAdd(timerName, (startTime, recordMin, recordMax));
       timerResults.TryAdd(timerName, new List<Result>());
       if (recordMin) {
-        timerMinimums.TryAdd(timerName, new Result() { comment = "unset", elapsedMilliseconds = long.MinValue });
+        timerMinimums.TryAdd(timerName, new Result() { comment = "unset", elapsedMilliseconds = long.MaxValue });
       }
       if (recordMax) {
-        timerMaximums.TryAdd(timerName, new Result() { comment = "unset", elapsedMilliseconds = long.MaxValue });
+        timerMaximums.TryAdd(timerName, new Result() { comment = "unset", elapsedMilliseconds = long.MinValue });
       }
     }
 
@@ -117,7 +117,7 @@ namespace Evix.Testing {
           /// add max info
           if (timerSettings.recordMax) {
             if (timerMaximums.TryGetValue(timerName, out Result maximumResult)) {
-              timerResultText += $"Min Result: {maximumResult.elapsedMilliseconds}{(maximumResult.comment != "" ? $" * {maximumResult.comment}" : "")}\n";
+              timerResultText += $"Max Result: {maximumResult.elapsedMilliseconds}{(maximumResult.comment != "" ? $" * {maximumResult.comment}" : "")}\n";
               addedMaxOrMin = true;
             }
           }

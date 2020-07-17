@@ -69,12 +69,6 @@ namespace Evix.Terrain.Resolution {
       = new List<Adjustment>();
 
     /// <summary>
-    /// The priority queue that this aperture manages
-    /// </summary>
-    ConcurrentDictionary<Coordinate, Adjustment> waitingAdjustments
-      = new ConcurrentDictionary<Coordinate, Adjustment>();
-
-    /// <summary>
     /// The chunk bounds this aperture is managing
     /// </summary>
     Coordinate[] managedChunkBounds
@@ -138,7 +132,7 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="adjustment"></param>
     /// <returns></returns>
-    protected abstract IAdjustmentJob getJob(Adjustment adjustment);
+    protected abstract ApetureJobHandle getJob(Adjustment adjustment);
 
     #endregion
 
@@ -162,7 +156,6 @@ namespace Evix.Terrain.Resolution {
         index--;
 
         if (!isWithinManagedBounds(waitingAdjustment) || !isValid(waitingAdjustment, out Chunk validatedChunk)) {
-          waitingAdjustments.TryRemove(waitingAdjustment.chunkID, out _);
           continue;
         }
 
@@ -172,8 +165,7 @@ namespace Evix.Terrain.Resolution {
           && isReady(waitingAdjustment, validatedChunk)
           && validatedChunk.tryToLock((waitingAdjustment.resolution, waitingAdjustment.type))
         ) {
-          jobHandle = new ApetureJobHandle(getJob(waitingAdjustment));
-          waitingAdjustments.TryRemove(waitingAdjustment.chunkID, out _);
+          jobHandle = getJob(waitingAdjustment);
 #if DEBUG
           validatedChunk.recordEvent($"Aperture Type {GetType().Name} running job {jobHandle.job.GetType().Name} for adjustment: {waitingAdjustment}");
 #endif
@@ -236,17 +228,13 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="focus"></param>
     public void updateAdjustmentsForFocusLocationChange(ILevelFocus focus) {
-      List<Adjustment> chunkAdjustments = new List<Adjustment>();
+      List <Adjustment> chunkAdjustments = new List<Adjustment>();
       Coordinate[] newManagedChunkBounds = getManagedChunkBounds(focus);
 
       /// get newly in focus chunks
       newManagedChunkBounds.forEachPointNotWithin(managedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id);
         /// test for and remove the opposite adjustment
-        if (waitingAdjustments.TryGetValue(adjustment.chunkID, out Adjustment activeAdjustment) && activeAdjustment.type != adjustment.type) {
-          adjustmentQueue.Remove(activeAdjustment);
-          waitingAdjustments.TryRemove(activeAdjustment.chunkID, out _);
-        }
         chunkAdjustments.Add(adjustment);
 #if DEBUG
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
@@ -257,10 +245,6 @@ namespace Evix.Terrain.Resolution {
       managedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
         /// test for and remove the opposite adjustment
-        if (waitingAdjustments.TryGetValue(adjustment.chunkID, out Adjustment activeAdjustment) && activeAdjustment.type != adjustment.type) {
-          adjustmentQueue.Remove(activeAdjustment);
-          waitingAdjustments.TryRemove(activeAdjustment.chunkID, out _);
-        }
         chunkAdjustments.Add(adjustment);
 #if DEBUG
         lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
@@ -300,7 +284,7 @@ namespace Evix.Terrain.Resolution {
         adjustmentQueue = adjustmentQueue.OrderBy(adjustment => getPriority(adjustment, focus)).ToList();
       }
       /// update our index based dictionary too
-      waitingAdjustments = new ConcurrentDictionary<Coordinate, Adjustment>(adjustmentQueue.ToDictionary(a => a.chunkID, a => a));
+      //waitingAdjustments = new ConcurrentDictionary<Coordinate, Adjustment>(adjustmentQueue.ToDictionary(a => a.chunkID, a => a));
     }
 
 

@@ -14,12 +14,15 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="adjustment"></param>
     /// <returns></returns>
-    protected override IAdjustmentJob getJob(Adjustment adjustment) {
+    protected override ApetureJobHandle getJob(Adjustment adjustment) {
+      IAdjustmentJob job;
       if (adjustment.type == FocusAdjustmentType.InFocus) {
-        return new SetChunkVisibleJob(adjustment);
+        job = new SetChunkVisibleJob(adjustment);
       } else {
-        return new SetChunkInvisibleJob(adjustment);
+        job = new SetChunkInvisibleJob(adjustment);
       }
+
+      return new ApetureJobHandle(job, true);
     }
 
     internal override bool isValid(Adjustment adjustment, out Chunk chunk) {

@@ -15,12 +15,15 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="adjustment"></param>
     /// <returns></returns>
-    protected override IAdjustmentJob getJob(Adjustment adjustment) {
+    protected override ApetureJobHandle getJob(Adjustment adjustment) {
+      IAdjustmentJob job;
       if (adjustment.type == FocusAdjustmentType.InFocus || adjustment.type == FocusAdjustmentType.Dirty) {
-        return MarchingTetsMeshGenerator.GetJob(adjustment, lens.level);
+        job = MarchingTetsMeshGenerator.GetJob(adjustment, lens.level);
       } else {
-        return new DemeshChunkObjectJob(adjustment, lens.level);
+        job = new DemeshChunkObjectJob(adjustment, lens.level);
       }
+
+      return new ApetureJobHandle(job);
     }
 
     /// <summary>
