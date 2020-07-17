@@ -38,7 +38,7 @@ namespace Evix {
 		/// <summary>
 		/// The debugger used to interface with unity debugging.
 		/// </summary>
-		public static UnityDebugger Debugger {
+		public static UnityDebugger Debug {
 			get;
 		} = new UnityDebugger();
 

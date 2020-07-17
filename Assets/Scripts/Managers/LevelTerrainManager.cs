@@ -9,6 +9,9 @@ using System.Collections.Generic;
 
 namespace Evix.Managers {
 
+  /// <summary>
+  /// A manager that deals with moving chunks around to represent the level around foci
+  /// </summary>
   public class LevelTerrainManager : MonoBehaviour, IObserver {
 
     /// <summary>
@@ -196,7 +199,7 @@ namespace Evix.Managers {
             chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
 #endif
             chunk.setVisible();
-            chunk.unlock(Chunk.Resolution.Visible);
+            chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
           }
         } else {
           chunksToActivate.enqueue(activatedChunkLocation);
@@ -214,7 +217,7 @@ namespace Evix.Managers {
           chunkToSetInvisible.recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
 #endif
           chunkToSetInvisible.setVisible(false);
-          chunkToSetInvisible.unlock(Chunk.Resolution.Visible);
+          chunkToSetInvisible.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus));
         }
       }
 

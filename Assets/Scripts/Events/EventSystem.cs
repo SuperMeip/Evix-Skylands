@@ -103,7 +103,7 @@ namespace Evix.Events {
 		/// <param name="origin">(optional) the osurce of the event</param>
 		void notifyAllOf(IEvent @event) {
 			if (debugMode) {
-				World.Debugger.log($"Notifiying ALL of {@event.name}");
+				World.Debug.log($"Notifiying ALL of {@event.name}");
 			}
 			foreach (IObserver observer in allListeners) {
 				observer.notifyOf(@event);
@@ -119,7 +119,7 @@ namespace Evix.Events {
 			int channelNumber = Convert.ToInt32(channelToNotify);
 			if (channelNumber < listenersByChannel.Length && channelNumber > 0) {
 				if (debugMode) {
-					World.Debugger.log($"Notifiying channel: {channelToNotify} of {@event.name}");
+					World.Debug.log($"Notifiying channel: {channelToNotify} of {@event.name}");
 				}
 				foreach (IObserver observer in listenersByChannel[channelNumber]) {
 					observer.notifyOf(@event);

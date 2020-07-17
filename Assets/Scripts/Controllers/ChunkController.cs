@@ -2,6 +2,7 @@ using Evix.Events;
 using Evix.Managers;
 using Evix.Terrain.Collections;
 using Evix.Terrain.MeshGeneration;
+using Evix.Terrain.Resolution;
 using Evix.Testing;
 using System.Collections.Generic;
 using Unity.Jobs;
@@ -149,14 +150,14 @@ namespace Evix.Controllers {
       if (activeState) {
         gameObject.SetActive(true);
         chunkData.setVisible();
-        chunkData.unlock(Chunk.Resolution.Visible);
+        chunkData.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
 #if DEBUG
         recordEvent($"setting chunk visible");
 #endif
       } else {
         gameObject.SetActive(false);
         chunkData.setVisible(false);
-        chunkData.unlock(Chunk.Resolution.Visible);
+        chunkData.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus));
 #if DEBUG
         recordEvent($"hiding chunk");
 #endif

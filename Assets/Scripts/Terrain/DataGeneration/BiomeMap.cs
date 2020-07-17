@@ -79,7 +79,7 @@ namespace Evix.Terrain.DataGeneration {
         int solidVoxelCount = GenerateTerrainDataForChunk(biome, adjustment.chunkID, out byte[] generatedVoxels);
         Chunk chunk = level.getChunk(adjustment.chunkID);
         chunk.setVoxelData(generatedVoxels, solidVoxelCount);
-        chunk.unlock(adjustment.resolution);
+        chunk.unlock((adjustment.resolution, adjustment.type));
       }
     }
   }

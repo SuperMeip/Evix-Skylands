@@ -64,12 +64,12 @@ namespace Evix.Terrain.Resolution {
               });
 
               /// set mesh as empty if we don't need to load it
-              if (allBlockingNeighborsAreSolid && chunk.tryToLock(Chunk.Resolution.Meshed)) {
+              if (allBlockingNeighborsAreSolid && chunk.tryToLock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus))) {
 #if DEBUG
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, solid chunk is hidden");
 #endif
                 chunk.setMesh(default);
-                chunk.unlock(Chunk.Resolution.Meshed);
+                chunk.unlock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus));
 
                 return false;
               }
@@ -94,12 +94,12 @@ namespace Evix.Terrain.Resolution {
               });
               
               /// set mesh as empty if we don't need to load it
-              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock(Chunk.Resolution.Meshed)) {
+              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus))) {
 #if DEBUG
                 chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, chunk is empty and has no dependent neighbors");
 #endif
                 chunk.setMesh(default);
-                chunk.unlock(Chunk.Resolution.Meshed);
+                chunk.unlock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus));
 
                 return false;
               }
@@ -205,7 +205,7 @@ namespace Evix.Terrain.Resolution {
       public void doWork() {
         Chunk chunk = level.getChunk(adjustment.chunkID);
         chunk.clearMesh();
-        chunk.unlock(Chunk.Resolution.Meshed);
+        chunk.unlock((Chunk.Resolution.Meshed, FocusAdjustmentType.OutOfFocus));
 
 #if DEBUG
         chunk.recordEvent($"Notifying level manager of cleared mesh");

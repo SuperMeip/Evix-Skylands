@@ -10,13 +10,13 @@ namespace Evix.Terrain.DataGeneration {
 
   /// <summary>
   /// Class for accessing level data from files
-  /// @todo, this should become an object made in the Level constructor, with file names pre-generated that's grabbed by the apeture from the level {get}
+  /// TODO, this should become an object made in the Level constructor, with file names pre-generated that's grabbed by the apeture from the level {get}
   /// </summary>
   public static class LevelDAO {
 
     /// <summary>
     /// A regex we can use to remove illegal file name chars.
-    /// @TODO: move this to Level's constructor so we only need to construct the level's file safe name once.
+    /// TODO: move this to Level's constructor so we only need to construct the level's file safe name once.
     /// </summary>
     static readonly Regex IllegalCharactersForFileName = new Regex(
       string.Format("[{0}]",
@@ -104,7 +104,6 @@ namespace Evix.Terrain.DataGeneration {
 
     /// <summary>
     /// Create the save file directory if it doesn't exist for the level yet
-    /// @todo: put this in the save function
     /// </summary>
     static void CheckForSaveDirectory(string levelName) {
       if (Directory.Exists(GetChunkDataFolder(levelName))) {
@@ -209,7 +208,7 @@ namespace Evix.Terrain.DataGeneration {
         if (GetDataForChunkFromFile(adjustment.chunkID, level.name, out ChunkSaveData chunkData)) {
           Chunk chunk = level.getChunk(adjustment.chunkID);
           chunk.setVoxelData(chunkData.voxels, chunkData.solidVoxelCount);
-          chunk.unlock(adjustment.resolution);
+          chunk.unlock((adjustment.resolution, adjustment.type));
         }
       }
     }
@@ -242,7 +241,7 @@ namespace Evix.Terrain.DataGeneration {
       public void doWork() {
         Chunk chunk = level.getChunk(adjustment.chunkID);
         SaveChunkDataToFile(adjustment.chunkID, level.name, chunk.clearVoxelData(adjustment));
-        chunk.unlock(adjustment.resolution);
+        chunk.unlock((adjustment.resolution, adjustment.type));
       }
     }
 

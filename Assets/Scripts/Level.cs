@@ -94,7 +94,7 @@ namespace Evix {
 					chunks.Add(chunkID, newChunk);
 					newChunk[x & 0xF, y & 0xF, z & 0xF] = value;
 				} else {
-					World.Debugger.logError($"Tried to set a value in out of bounds chunk {x}, {y}, {z}");
+					World.Debug.logError($"Tried to set a value in out of bounds chunk {x}, {y}, {z}");
 				}
 			}
 		}
@@ -153,7 +153,7 @@ namespace Evix {
 
 		/// <summary>
 		/// Add a focus to be managed by this level
-		/// @TODO: the player should be pased in eventually too, and we'll use there prefs to size the lens
+		/// TODO: the player should be pased in eventually too, and we'll use there prefs to size the lens
 		/// </summary>
 		/// <param name="newFocus"></param>
 		public IFocusLens addPlayerFocus(ILevelFocus newFocus) {

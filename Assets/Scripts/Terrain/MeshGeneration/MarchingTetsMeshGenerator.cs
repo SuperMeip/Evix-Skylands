@@ -61,7 +61,7 @@ namespace Evix.Terrain.MeshGeneration {
 			byte[] collectedVoxels = new byte[MarchDiameter * MarchDiameter * MarchDiameter];
 			Coordinate chunkWorldLocation = Chunk.IDToWorldLocation(chunkID);
 			int solidVoxelCount = 0;
-			//@todo: move this data get into some prep step in the Manager Thread.
+			// TODO: move this data get into some prep step in the Manager Thread.
 			chunkWorldLocation.until(chunkWorldLocation + MarchDiameter, (worldLocation) => {
 				byte voxel = level[worldLocation];
 				if (voxel != Evix.Voxels.Voxel.Types.Empty.Id) {
@@ -332,7 +332,7 @@ namespace Evix.Terrain.MeshGeneration {
 				// mark the chunk mesh data
 				Chunk meshedChunk = level.getChunk(adjustment.chunkID);
 				meshedChunk.setMesh(generatedChunkMesh, adjustment.type == ChunkResolutionAperture.FocusAdjustmentType.Dirty);
-				meshedChunk.unlock(Chunk.Resolution.Meshed);
+				meshedChunk.unlock((Chunk.Resolution.Meshed, adjustment.type));
 #if DEBUG
 				level.getChunk(adjustment.chunkID).recordEvent($"Mesh notification being sent to level terrain manager");
 #endif

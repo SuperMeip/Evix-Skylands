@@ -131,7 +131,7 @@ namespace Evix.EditorTools {
 				warning += " on behaviour <color=brown>" + fieldInfo.DeclaringType.Name + "</color>";
 			warning += " caused: " + log;
 
-			World.Debugger.logWarning(warning);
+			World.Debug.logWarning(warning);
 		}
 
 
@@ -145,7 +145,6 @@ namespace Evix.EditorTools {
 				_genericAttribute = (PropertyAttribute)fieldInfo.GetCustomAttributes(typeof(PropertyAttribute), false)
 					.FirstOrDefault(a => !(a is ConditionalFieldAttribute));
 
-				//TODO: wtf man
 				if (_genericAttribute is ContextMenuItemAttribute ||
 						_genericAttribute is SeparatorAttribute | _genericAttribute is AutoPropertyAttribute) {
 					LogWarning("[ConditionalField] does not work with " + _genericAttribute.GetType(), property);
@@ -309,7 +308,7 @@ namespace Evix.EditorTools {
 				var who = "Property <color=brown>" + arrayProp.name + "</color> in object <color=brown>" + target.name + "</color> caused: ";
 				var warning = who + "Array fields is not supported by [ConditionalFieldAttribute]";
 
-				World.Debugger.logWarning(warning);
+				World.Debug.logWarning(warning);
 
 				return null;
 			}

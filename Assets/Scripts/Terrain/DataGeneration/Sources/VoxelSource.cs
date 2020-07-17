@@ -6,12 +6,6 @@
   public abstract class VoxelSource {
 
     /// <summary>
-    /// Generated voxels for this source.
-    /// @todod, make this instanced to make it thread safe?
-    /// </summary>
-    public static int VoxelsGenerated = 0;
-
-    /// <summary>
     /// The generation seed
     /// </summary>
     public int seed {

@@ -41,9 +41,9 @@ namespace Evix.Terrain.Resolution {
 #endif
             if (chunk.currentResolution == Chunk.Resolution.Visible) {
               return false;
-            } else if (chunk.tryToLock(Chunk.Resolution.Visible)) {
+            } else if (chunk.tryToLock((Chunk.Resolution.Visible, FocusAdjustmentType.InFocus))) {
               chunk.setVisible(true);
-              chunk.unlock(Chunk.Resolution.Visible);
+              chunk.unlock((Chunk.Resolution.Visible, FocusAdjustmentType.InFocus));
 
               return false;
             }

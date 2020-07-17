@@ -1,4 +1,4 @@
-﻿using System;
+﻿using Evix.Testing;
 using UnityEngine;
 
 namespace Evix {
@@ -18,6 +18,12 @@ namespace Evix {
       private set;
     } = false;
 #endif
+
+    /// <summary>
+    /// The Timer used for time tracking
+    /// </summary>
+    public readonly Timer Timer 
+      = new Timer();
 
     /// <summary>
     /// Make a new unity debugger. Override debug mode if you want

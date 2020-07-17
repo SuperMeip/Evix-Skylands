@@ -8,6 +8,12 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Evix.Terrain.Resolution {
+
+  // TODO: Add static global timer singleton to track times for things in DEBUG mode
+
+  /// <summary>
+  /// An area that manages the resolution of chunks within it
+  /// </summary>
   public abstract class ChunkResolutionAperture : IChunkResolutionAperture {
 
     /// <summary>
@@ -164,12 +170,12 @@ namespace Evix.Terrain.Resolution {
         // if it's ready, we'll try to lock it so this aperture can work on it
         if (!validatedChunk.isLockedForWork
           && isReady(waitingAdjustment, validatedChunk)
-          && validatedChunk.tryToLock(waitingAdjustment.resolution)
+          && validatedChunk.tryToLock((waitingAdjustment.resolution, waitingAdjustment.type))
         ) {
           jobHandle = new ApetureJobHandle(getJob(waitingAdjustment));
           waitingAdjustments.TryRemove(waitingAdjustment.chunkID, out _);
 #if DEBUG
-          validatedChunk.recordEvent($"Aperture Type {GetType()} running job {jobHandle.job.GetType()} for adjustment: {waitingAdjustment}");
+          validatedChunk.recordEvent($"Aperture Type {GetType().Name} running job {jobHandle.job.GetType().Name} for adjustment: {waitingAdjustment}");
 #endif
           return true;
           // if it's not ready, or there's a conflict requeue
@@ -393,6 +399,11 @@ namespace Evix.Terrain.Resolution {
       public readonly IAdjustmentJob job;
 
       /// <summary>
+      /// If we should run this job in the current thread
+      /// </summary>
+      public readonly bool runSynchronously;
+
+      /// <summary>
       /// Check if the job completed
       /// </summary>
       public bool jobIsComplete {
@@ -408,8 +419,9 @@ namespace Evix.Terrain.Resolution {
       /// Make a new handle for a job
       /// </summary>
       /// <param name="job"></param>
-      public ApetureJobHandle(IAdjustmentJob job) {
+      public ApetureJobHandle(IAdjustmentJob job, bool runSynchronously = false) {
         this.job = job;
+        this.runSynchronously = runSynchronously;
         task = null;
       }
 
@@ -417,8 +429,12 @@ namespace Evix.Terrain.Resolution {
       /// Schedule the job to run async
       /// </summary>
       public void schedule() {
-        task = new Task(() => job.doWork());
-        task.Start();
+        if (!runSynchronously) {
+          task = new Task(() => job.doWork());
+          task.Start();
+        } else {
+          job.doWork();
+        }
       }
     }
 

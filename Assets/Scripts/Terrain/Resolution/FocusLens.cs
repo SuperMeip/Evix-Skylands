@@ -119,7 +119,9 @@ namespace Evix.Terrain.Resolution {
         IChunkResolutionAperture aperture = apeturesByPriority[i];
         if (aperture.tryToGetNextAdjustmentJob(focus, out ChunkResolutionAperture.ApetureJobHandle jobHandle)) {
           jobHandle.schedule();
-          runningJobs.Add(jobHandle);
+          if (!jobHandle.runSynchronously) {
+            runningJobs.Add(jobHandle);
+          }
           return;
         }
       }
@@ -146,9 +148,11 @@ namespace Evix.Terrain.Resolution {
     /// Update each apeture whenever the focus this lens is focused on moves
     /// </summary>
     public void updateAdjustmentsForFocusMovement() {
+      World.Debug.Timer.start("updateAdjustmentsForFocusMovement");
       foreach (IChunkResolutionAperture aperture in apeturesByPriority) {
         aperture.updateAdjustmentsForFocusLocationChange(focus);
       }
+      World.Debug.Timer.record("updateAdjustmentsForFocusMovement");
     }
 
     #endregion
@@ -184,7 +188,7 @@ namespace Evix.Terrain.Resolution {
         foreach(ChunkResolutionAperture aperture in apeturesByPriority) {
           if (aperture.resolution == Chunk.Resolution.Meshed && aperture.isWithinManagedBounds(cde.chunkID)) {
             // throw in jobs to updat the neighbors
-            // @TODO: are these the right neighbors?
+            // TODO: are these the right neighbors?
             MarchingTetsMeshGenerator.ForEachDirtiedNeighbor(
               cde.chunkID,
               level,

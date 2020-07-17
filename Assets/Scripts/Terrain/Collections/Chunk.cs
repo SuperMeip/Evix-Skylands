@@ -7,6 +7,10 @@ using System.Collections.Generic;
 
 namespace Evix.Terrain.Collections {
 
+  // TODO: add queue priority to debug info about chunks
+
+  // TODO: change lock type to job/operation type.so opperations can't start of the same resolution on the same chunk until others are finished.
+
   /// <summary>
   /// A chunk of terrain that uses the Coordinate of it's 0,0,0 as an ID in the level
   /// </summary>
@@ -90,7 +94,7 @@ namespace Evix.Terrain.Collections {
     /// <summary>
     /// The type of resolution work being preformed on this chunk
     /// </summary>
-    public Resolution resolutionModificationLockType {
+    public (Resolution resolution, ChunkResolutionAperture.FocusAdjustmentType focusAdjustmentType) adjustmentLockType {
       get;
       private set;
     }
@@ -197,15 +201,19 @@ namespace Evix.Terrain.Collections {
     /// </summary>
     /// <param name="aperture"></param>
     /// <returns></returns>
-    public bool tryToLock(Resolution lockType) {
+    public bool tryToLock((Resolution resolution, ChunkResolutionAperture.FocusAdjustmentType focusAdjustmentType) adjustmentLockType) {
       if (isLockedForWork) {
-        recordEvent($"Attempt to lock chunk for {lockType} failed, already locked for {resolutionModificationLockType}");
+#if DEBUG
+        string warning = $"Attempt to lock chunk for: {adjustmentLockType}, failed, already locked for: {this.adjustmentLockType}";
+        World.Debug.logWarning(warning);
+        recordEvent(warning);
+#endif
         return false;
       } else {
         isLockedForWork = true;
-        resolutionModificationLockType = lockType;
+        this.adjustmentLockType = adjustmentLockType;
 #if DEBUG
-        recordEvent($"locked chunk for {lockType}");
+        recordEvent($"locked chunk for {adjustmentLockType}");
 #endif
         return true;
       }
@@ -215,19 +223,19 @@ namespace Evix.Terrain.Collections {
     /// Have the aperture unlock the chunk when it's done working on it
     /// </summary>
     /// <param name="aperture"></param>
-    internal void unlock(Resolution lockType) {
-      if (lockType == resolutionModificationLockType) {
+    public void unlock((Resolution, ChunkResolutionAperture.FocusAdjustmentType) lockType) {
+      if (lockType == adjustmentLockType) {
         isLockedForWork = false;
-        resolutionModificationLockType = default;
+        adjustmentLockType = default;
 #if DEBUG
         recordEvent($"unlocked chunk for {lockType}");
 #endif
       } else {
 #if DEBUG
-        recordEvent($"Tried to unlock locked chunk {resolutionModificationLockType}, with incorrect type {lockType}");
+        recordEvent($"Tried to unlock locked chunk {adjustmentLockType}, with incorrect type {lockType}");
 #endif
-        World.Debugger.logError($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {resolutionModificationLockType}");
-        throw new System.AccessViolationException($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {resolutionModificationLockType}");
+        World.Debug.logError($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {adjustmentLockType}");
+        throw new System.AccessViolationException($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {adjustmentLockType}");
       }
     }
 
@@ -250,7 +258,11 @@ namespace Evix.Terrain.Collections {
     /// <param name="voxels"></param>
     /// <param name="solidVoxelCount"></param>
     public void setVoxelData(byte[] voxels, int solidVoxelCount) {
-      if (isLockedForWork && resolutionModificationLockType == Resolution.Loaded && currentResolution == Resolution.UnLoaded) {
+      /// we can only set full voxel data on unloaded chunks that are locked for it
+      if (isLockedForWork 
+        && adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.InFocus) 
+        && currentResolution == Resolution.UnLoaded
+      ) {
 #if DEBUG
         recordEvent($"Setting generated voxel data with {solidVoxelCount} voxels");
 #endif
@@ -261,9 +273,9 @@ namespace Evix.Terrain.Collections {
         currentResolution = Resolution.Loaded;
       } else {
 #if DEBUG
-        recordEvent($"WARNING {id} could not set voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        recordEvent($"WARNING {id} could not set voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debugger.logError($"Attempting to set voxel data on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to set voxel data on a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 
@@ -273,11 +285,11 @@ namespace Evix.Terrain.Collections {
     /// <returns></returns>
     public LevelDAO.ChunkSaveData clearVoxelData(ChunkResolutionAperture.Adjustment adjustment) {
       if (isLockedForWork
-        && currentResolution >= Resolution.Loaded 
+        && currentResolution >= Resolution.Loaded
         && adjustment.resolution == Resolution.Loaded
-        && resolutionModificationLockType == Resolution.Loaded
+        && adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus)
       ) {
-        // @todo: check if the voxels aren't nulled
+        // TODO: check if the voxels aren't nulled
 #if DEBUG
         recordEvent($"clearing voxel data");
 #endif
@@ -290,9 +302,9 @@ namespace Evix.Terrain.Collections {
         return saveData;
       } else {
 #if DEBUG
-        recordEvent($"WARNING {id} could not remove voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        recordEvent($"WARNING {id} could not clear voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 # endif
-        World.Debugger.logError($"Attempting to remove voxel data from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to clear voxel data on a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
         return default;
       }
     }
@@ -301,8 +313,12 @@ namespace Evix.Terrain.Collections {
     /// Set that the chunk node has been meshed in game world for this chunk, or unmesh it
     /// </summary>
     public void setMesh(ChunkMeshData meshData, bool chunkIsDirty = false) {
-      if (isLockedForWork 
-        && resolutionModificationLockType == Resolution.Meshed 
+      /// to mesh a chunk, we need to either have it be locked for a dirty update, or locked for an in focus mesh update
+      if (isLockedForWork
+        && adjustmentLockType == (Resolution.Meshed, chunkIsDirty
+          ? ChunkResolutionAperture.FocusAdjustmentType.Dirty 
+          : ChunkResolutionAperture.FocusAdjustmentType.InFocus)
+          // if it's not dirty, it has to be at resolution loaded in order to set the mesh
         && (chunkIsDirty || currentResolution == Resolution.Loaded)
       ) {
 #if DEBUG
@@ -312,9 +328,9 @@ namespace Evix.Terrain.Collections {
         this.meshData = meshData;
       } else {
 #if DEBUG
-        recordEvent($"WARNING {id} could not set mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        recordEvent($"WARNING {(chunkIsDirty ? "Dirty" : "")} chunk {id} could not set mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debugger.logError($"Attempting to set a chunk as mehsed on a chunk without the correct aperture lock or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to set a chunk as mehsed on a {(chunkIsDirty ? "Dirty" : "")} chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 
@@ -322,8 +338,14 @@ namespace Evix.Terrain.Collections {
     /// Remove the set chunk mesh from memmory
     /// </summary>
     public void clearMesh() {
+#if DEBUG
       recordEvent($"trying to clear the mesh");
-      if (isLockedForWork && resolutionModificationLockType == Resolution.Meshed && currentResolution == Resolution.Meshed) {
+#endif
+      /// can only clear the mesh if it's locked for out of focus, and currently at meshed (must be invisible)
+      if (isLockedForWork
+        && adjustmentLockType == (Resolution.Meshed, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus)
+        && currentResolution == Resolution.Meshed
+      ) {
 #if DEBUG
         recordEvent($"Clearing chunk mesh");
 #endif
@@ -331,9 +353,9 @@ namespace Evix.Terrain.Collections {
         meshData = default;
       } else {
 #if DEBUG
-        recordEvent($"WARNING {id} could not clear mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may be locked incorrectly ({resolutionModificationLockType}) or have a wrong resolution: {currentResolution}");
+        recordEvent($"WARNING {id} could not clear mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debugger.logError($"Attempting to remove a chunk mesh from a chunk without the correct aperture lock or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to remove a chunk mesh from a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 
@@ -342,25 +364,38 @@ namespace Evix.Terrain.Collections {
     /// </summary>
     /// <param name="activeState"></param>
     public void setVisible(bool activeState = true) {
+      /// Set visible
       if (activeState) {
-        if (isLockedForWork && resolutionModificationLockType == Resolution.Visible && currentResolution == Resolution.Meshed) {
+        if (isLockedForWork 
+          && adjustmentLockType == (Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus)
+          && currentResolution == Resolution.Meshed
+        ) {
 #if DEBUG
           recordEvent($"Setting chunk visible");
 #endif
           currentResolution = Resolution.Visible;
-        } else throw new System.AccessViolationException($"Attempting to set a chunk visible without the correct aperture lock or resolution level:  " +
-          $"{RecordedInterfaceHelper.FormatRecordsMarkdown(eventHistory.ToArray())}");
+        } else {
+#if DEBUG
+          recordEvent($"WARNING {id} could not be set visible, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+#endif
+          World.Debug.logError($"Attempting to set a chunk visible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        }
+      /// set invisible
       } else {
-        if (isLockedForWork && resolutionModificationLockType == Resolution.Visible && currentResolution == Resolution.Visible) {
+        if (isLockedForWork 
+          && adjustmentLockType == (Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus)
+          && currentResolution == Resolution.Visible
+        ) {
 #if DEBUG
           recordEvent($"Setting chunk invisible");
 #endif
           currentResolution = Resolution.Meshed;
-        } else throw new System.AccessViolationException($"Attempting to set a chunk invisible without the correct aperture lock or resolution level. "
+        } else {
 #if DEBUG
-          + $"{RecordedInterfaceHelper.FormatRecordsMarkdown(eventHistory.ToArray())}"
+          recordEvent($"WARNING {id} could not be set invisible, islockeddforwork may not be true, ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        );
+          World.Debug.logError($"Attempting to set a chunk invisible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        }
       }
     }
 
