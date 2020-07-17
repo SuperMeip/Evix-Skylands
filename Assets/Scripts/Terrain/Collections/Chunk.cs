@@ -380,7 +380,7 @@ namespace Evix.Terrain.Collections {
     /// </summary>
     /// <param name="event"></param>
     public void recordEvent(string @event) {
-      eventHistory.Add((System.DateTime.Now.ToString("HH: mm:ss.ff"), @event));
+      //eventHistory.Add((System.DateTime.Now.ToString("HH: mm:ss.ff"), @event));
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Terrain Edit Add Grid
-  m_Shader: {fileID: 4800000, guid: fd4fa52ad7dc2fb42a04cd8de1d9dc42, type: 3}
+  m_Shader: {fileID: 4800000, guid: 662f84ddf1c01b149b36e75c2f94e92b, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
@@ -81,6 +81,7 @@ Material:
     - _MainTex: {r: 1, g: 1, b: 1, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
+    - _WireFrameColor: {r: 1, g: 1, b: 1, a: 1}
     - _WireFrameTint: {r: 1, g: 0.66082585, b: 0, a: 1}
 --- !u!114 &6004508165428437762
 MonoBehaviour:
