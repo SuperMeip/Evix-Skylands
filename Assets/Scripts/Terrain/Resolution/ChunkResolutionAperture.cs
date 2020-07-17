@@ -1,8 +1,10 @@
 using Evix.Terrain.Collections;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Evix.Terrain.Resolution {
@@ -59,6 +61,12 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     List<Adjustment> adjustmentQueue
       = new List<Adjustment>();
+
+    /// <summary>
+    /// The priority queue that this aperture manages
+    /// </summary>
+    ConcurrentDictionary<Coordinate, Adjustment> waitingAdjustments
+      = new ConcurrentDictionary<Coordinate, Adjustment>();
 
     /// <summary>
     /// The chunk bounds this aperture is managing
@@ -148,6 +156,7 @@ namespace Evix.Terrain.Resolution {
         index--;
 
         if (!isWithinManagedBounds(waitingAdjustment) || !isValid(waitingAdjustment, out Chunk validatedChunk)) {
+          waitingAdjustments.TryRemove(waitingAdjustment.chunkID, out _);
           continue;
         }
 
@@ -158,6 +167,7 @@ namespace Evix.Terrain.Resolution {
           && validatedChunk.tryToLock(waitingAdjustment.resolution)
         ) {
           jobHandle = new ApetureJobHandle(getJob(waitingAdjustment));
+          waitingAdjustments.TryRemove(waitingAdjustment.chunkID, out _);
 #if DEBUG
           validatedChunk.recordEvent($"Aperture Type {GetType()} running job {jobHandle.job.GetType()} for adjustment: {waitingAdjustment}");
 #endif
@@ -225,23 +235,36 @@ namespace Evix.Terrain.Resolution {
 
       /// get newly in focus chunks
       newManagedChunkBounds.forEachPointNotWithin(managedChunkBounds, inFocusChunkLocation => {
-        chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id));
+        Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id);
+        /// test for and remove the opposite adjustment
+        if (waitingAdjustments.TryGetValue(adjustment.chunkID, out Adjustment activeAdjustment) && activeAdjustment.type != adjustment.type) {
+          adjustmentQueue.Remove(activeAdjustment);
+          waitingAdjustments.TryRemove(activeAdjustment.chunkID, out _);
+        }
+        chunkAdjustments.Add(adjustment);
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
+#endif
       });
 
       /// see if we should get newly out of focus chunks
       managedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
-        chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id));
+        Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
+        /// test for and remove the opposite adjustment
+        if (waitingAdjustments.TryGetValue(adjustment.chunkID, out Adjustment activeAdjustment) && activeAdjustment.type != adjustment.type) {
+          adjustmentQueue.Remove(activeAdjustment);
+          waitingAdjustments.TryRemove(activeAdjustment.chunkID, out _);
+        }
+        chunkAdjustments.Add(adjustment);
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
+#endif
       });
 
       /// update the new managed bounds
       managedChunkBounds = newManagedChunkBounds;
       adjustmentQueue.AddRange(chunkAdjustments);
       sortQueueAround(focus);
-#if DEBUG
-      foreach (Adjustment adjustment in chunkAdjustments) {
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
-      }
-#endif
     }
 
     /// <summary>
@@ -270,6 +293,8 @@ namespace Evix.Terrain.Resolution {
       lock (adjustmentQueue) {
         adjustmentQueue = adjustmentQueue.OrderBy(adjustment => getPriority(adjustment, focus)).ToList();
       }
+      /// update our index based dictionary too
+      waitingAdjustments = new ConcurrentDictionary<Coordinate, Adjustment>(adjustmentQueue.ToDictionary(a => a.chunkID, a => a));
     }
 
 
