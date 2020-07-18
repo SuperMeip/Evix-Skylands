@@ -46,7 +46,9 @@ namespace Evix.Terrain.MeshGeneration {
 			Directions.West.Offset + Directions.South.Offset,
 			Directions.Below.Offset + Directions.South.Offset,
 			Directions.West.Offset + Directions.Below.Offset,
-			Directions.West.Offset + Directions.South.Offset + Directions.Below.Offset
+			Directions.West.Offset + Directions.South.Offset + Directions.Below.Offset,
+			Directions.East.Offset + Directions.South.Offset + Directions.Above.Offset,
+			Directions.West.Offset + Directions.North.Offset + Directions.Below.Offset
 		}.Concat(NecessaryLoadedChunkNeighborOffsets).ToArray();
 
 		#region Data Preparation

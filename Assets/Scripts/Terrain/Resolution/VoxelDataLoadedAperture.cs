@@ -1,5 +1,6 @@
 ﻿using Evix.Terrain.Collections;
 using Evix.Terrain.DataGeneration;
+using Evix.Terrain.MeshGeneration;
 
 namespace Evix.Terrain.Resolution {
   class VoxelDataLoadedAperture : ChunkResolutionAperture {
@@ -56,6 +57,37 @@ namespace Evix.Terrain.Resolution {
       }
 
       return new ApetureJobHandle(job);
+    }
+
+    /// <summary>
+    /// When finished, alert the neighbors too
+    /// </summary>
+    /// <param name="job"></param>
+    public override void onJobComplete(IAdjustmentJob job) {
+      /// since neighbors may need this chunk to load, check if this one loading makes them ready to mesh:
+      /// TODO: check if ForEachDirtiedNeighbor is the right set of neighbors, we may be able to use less
+      if (job.adjustment.type == FocusAdjustmentType.InFocus) {
+        MarchingTetsMeshGenerator.ForEachDirtiedNeighbor(job.adjustment.chunkID, lens.level, chunk => {
+#if DEBUG
+          lens.level.getChunk(chunk.id).recordEvent($"Attempting to get apeture job for {(Chunk.Resolution.Meshed, job.adjustment.type)} from neighbor");
+#endif
+          if (lens.tryToGetAperture(resolution + 1, out IChunkResolutionAperture nextApetureInLine)) {
+            if (nextApetureInLine.tryToGetAdjustmentJobHandle(
+              new Adjustment(
+                chunk.id,
+                job.adjustment.type,
+                job.adjustment.resolution + 1,
+                job.adjustment.focusID
+              ),
+              out ApetureJobHandle jobHandle
+            )) {
+              jobHandle.schedule();
+              lens.storeJobHandle(jobHandle);
+            }
+          }
+        });
+      }
+      base.onJobComplete(job);
     }
   }
 

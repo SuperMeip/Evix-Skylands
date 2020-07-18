@@ -63,12 +63,6 @@ namespace Evix.Terrain.Resolution {
     readonly float YWeightMultiplier;
 
     /// <summary>
-    /// The priority queue that this aperture manages
-    /// </summary>
-    List<Adjustment> adjustmentQueue
-      = new List<Adjustment>();
-
-    /// <summary>
     /// The chunk bounds this aperture is managing
     /// </summary>
     Coordinate[] managedChunkBounds
@@ -138,47 +132,8 @@ namespace Evix.Terrain.Resolution {
 
     #region Lens Adjustment API
 
-    /// <summary>
-    /// Try to get the next adjustment job that should be run for this aperture
-    /// </summary>
-    /// <param name="jobHandle"></param>
-    /// <returns></returns>
-    public bool tryToGetNextAdjustmentJob(ILevelFocus focus, out ApetureJobHandle jobHandle) {
-      jobHandle = null;
-      int queueBottleneck = 20;
-      for (int index = 0; (index < adjustmentQueue.Count) && (queueBottleneck-- > 0); index++) {
-        Adjustment waitingAdjustment;
-        // get the 0th adjustment
-        lock (adjustmentQueue) {
-          waitingAdjustment = adjustmentQueue[index];
-          adjustmentQueue.RemoveAt(index);
-        }
-        index--;
-
-        if (!isWithinManagedBounds(waitingAdjustment) || !isValid(waitingAdjustment, out Chunk validatedChunk)) {
-          continue;
-        }
-
-        // if the item is not locked by another job, check if it's ready
-        // if it's ready, we'll try to lock it so this aperture can work on it
-        if (!validatedChunk.isLockedForWork
-          && isReady(waitingAdjustment, validatedChunk)
-          && validatedChunk.tryToLock((waitingAdjustment.resolution, waitingAdjustment.type))
-        ) {
-          jobHandle = getJob(waitingAdjustment);
-#if DEBUG
-          validatedChunk.recordEvent($"Aperture Type {GetType().Name} running job {jobHandle.job.GetType().Name} for adjustment: {waitingAdjustment}");
-#endif
-          return true;
-          // if it's not ready, or there's a conflict requeue
-          // if there's a conflict, it means a job is already running on this chunk and we should wait for that one to finish
-        } else {
-          // shove it back into the sort where we got it from
-          adjustmentQueue.Insert(index + 1, waitingAdjustment);
-        }
-      }
-
-      return false;
+    public void initializeBounds(ILevelFocus focus) {
+      managedChunkBounds = getManagedChunkBounds(focus);
     }
 
     /// <summary>
@@ -186,16 +141,22 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="chunkID"></param>
     /// <param name="focus"></param>
-    public void addDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
-      adjustmentQueue.Insert(0, new Adjustment(
-        chunkID,
-        FocusAdjustmentType.Dirty,
-        resolution,
-        focus.id
-      ));
+    public void updateDirtyChunk(Coordinate chunkID, ILevelFocus focus) {
+      if (tryToGetAdjustmentJobHandle(
+        new Adjustment(
+          chunkID,
+          FocusAdjustmentType.Dirty,
+          resolution,
+          focus.id
+        ),
+        out ApetureJobHandle jobHandle
+      )) {
+        jobHandle.schedule();
+        lens.storeJobHandle(jobHandle);
 #if DEBUG
-      lens.level.getChunk(chunkID).recordEvent($"Apeture type {GetType()} for {resolution} resolution has been notified this chunk is dirty");
+        lens.level.getChunk(chunkID).recordEvent($"Apeture type {GetType()} for {resolution} resolution has been notified this chunk is dirty");
 #endif
+      }
     }
 
     /// <summary>
@@ -204,21 +165,23 @@ namespace Evix.Terrain.Resolution {
     /// <param name="newFocalPoint"></param>
     public int updateAdjustmentsForFocusInitilization(ILevelFocus newFocalPoint) {
       List<Adjustment> chunkAdjustments = new List<Adjustment>();
-      managedChunkBounds = getManagedChunkBounds(newFocalPoint);
 
       /// just get the new in focus chunks for the whole managed area
       managedChunkBounds[0].until(managedChunkBounds[1], inFocusChunkLocation => {
         chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, newFocalPoint.id));
-      });
-
-      adjustmentQueue.AddRange(chunkAdjustments);
-      sortQueueAround(newFocalPoint);
-
 #if DEBUG
-      foreach (Adjustment adjustment in chunkAdjustments) {
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {resolution}");
-      }
+        lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
 #endif
+      });
+      /// sort them by distance to the player
+      chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, newFocalPoint));
+
+      /// run adjustments
+      foreach(Adjustment adjustment in chunkAdjustments) {
+        if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
+          jobHandle.schedule();
+        }
+      }
 
       return chunkAdjustments.Count;
     }
@@ -228,33 +191,42 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="focus"></param>
     public void updateAdjustmentsForFocusLocationChange(ILevelFocus focus) {
-      List <Adjustment> chunkAdjustments = new List<Adjustment>();
+      List<Adjustment> chunkAdjustments = new List<Adjustment>();
       Coordinate[] newManagedChunkBounds = getManagedChunkBounds(focus);
 
-      /// get newly in focus chunks
-      newManagedChunkBounds.forEachPointNotWithin(managedChunkBounds, inFocusChunkLocation => {
-        Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id);
-        /// test for and remove the opposite adjustment
-        chunkAdjustments.Add(adjustment);
+      /// just get the new in focus chunks for the whole managed area
+      managedChunkBounds[0].until(managedChunkBounds[1], inFocusChunkLocation => {
+        chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id));
 #if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
+        lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
 #endif
       });
+
+      /// sort them by distance to the player
+      chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, focus));
+
+      /// run adjustments
+      foreach(Adjustment adjustment in chunkAdjustments) {
+        if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
+          jobHandle.schedule();
+          lens.storeJobHandle(jobHandle);
+        }
+      }
 
       /// see if we should get newly out of focus chunks
       managedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
-        /// test for and remove the opposite adjustment
-        chunkAdjustments.Add(adjustment);
+        if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
+          jobHandle.schedule();
+          lens.storeJobHandle(jobHandle);
+        }
 #if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Added to apeture queue for {adjustment.type} {resolution}");
+        lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.OutOfFocus)}");
 #endif
       });
 
       /// update the new managed bounds
       managedChunkBounds = newManagedChunkBounds;
-      adjustmentQueue.AddRange(chunkAdjustments);
-      sortQueueAround(focus);
     }
 
     /// <summary>
@@ -272,19 +244,43 @@ namespace Evix.Terrain.Resolution {
       ? (int)adjustment.chunkID.distanceYFlattened(focus.currentChunkID, YWeightMultiplier)
       : MaxManagedChunkDistance - (int)adjustment.chunkID.distanceYFlattened(focus.currentChunkID, YWeightMultiplier);
 
-      return distancePriority/* + (int)adjustment.resolution * 3*/;
+      return distancePriority;
     }
 
     /// <summary>
-    /// Sort the queue by priority around the given focus
+    /// Try to get the handle used to schedule a job for a valid adjustment
     /// </summary>
-    /// <param name="focus"></param>
-    protected void sortQueueAround(ILevelFocus focus) {
-      lock (adjustmentQueue) {
-        adjustmentQueue = adjustmentQueue.OrderBy(adjustment => getPriority(adjustment, focus)).ToList();
+    /// <param name="adjustment"></param>
+    /// <param name="jobHandle"></param>
+    /// <returns></returns>
+    public bool tryToGetAdjustmentJobHandle(Adjustment adjustment, out ApetureJobHandle jobHandle) {
+      jobHandle = null;
+      if (!isWithinManagedBounds(adjustment) || !isValid(adjustment, out Chunk validatedChunk)) {
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk not valid for job: {(adjustment.resolution, adjustment.type)}. Dropped");
+#endif
+        return false;
       }
-      /// update our index based dictionary too
-      //waitingAdjustments = new ConcurrentDictionary<Coordinate, Adjustment>(adjustmentQueue.ToDictionary(a => a.chunkID, a => a));
+
+      // if the item is not locked by another job, check if it's ready
+      // if it's ready, we'll try to lock it so this aperture can work on it
+      if (!validatedChunk.isLockedForWork
+        && isReady(adjustment, validatedChunk)
+        && validatedChunk.tryToLock((adjustment.resolution, adjustment.type))
+      ) {
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk is ready for job: {(adjustment.resolution, adjustment.type)}. Spinning up!");
+#endif
+        jobHandle = getJob(adjustment);
+        lens.storeJobHandle(jobHandle);
+        return true;
+      } else {
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk not ready for job: {(adjustment.resolution, adjustment.type)}. Dropped");
+#endif
+      }
+
+      return false;
     }
 
 
@@ -312,7 +308,32 @@ namespace Evix.Terrain.Resolution {
     /// Do work on the completion of a job
     /// </summary>
     /// <param name="job"></param>
-    public virtual void onJobComplete(IAdjustmentJob job) { }
+    public virtual void onJobComplete(IAdjustmentJob job) {
+      /// dirty jobs don't effect the chain
+      if (job.adjustment.type == FocusAdjustmentType.Dirty) {
+        return;
+      }
+
+      /// try to pass along the adjustment to the next aperture in line, up the line if it's in focus, down the line if it's out
+      Chunk.Resolution nextResolutionInLine = resolution + (job.adjustment.type == FocusAdjustmentType.InFocus ? 1 : -1);
+      if (lens.tryToGetAperture(nextResolutionInLine, out IChunkResolutionAperture nextApetureInLine)) {
+#if DEBUG
+        lens.level.getChunk(job.adjustment.chunkID).recordEvent($"Handing adjustment to next apeture in line: {(nextResolutionInLine, job.adjustment.type)}");
+#endif
+        if (nextApetureInLine.tryToGetAdjustmentJobHandle(
+          new Adjustment(
+            job.adjustment.chunkID,
+            job.adjustment.type,
+            nextResolutionInLine,
+            job.adjustment.focusID
+          ),
+          out ApetureJobHandle jobHandle
+        )) {
+          jobHandle.schedule();
+          lens.storeJobHandle(jobHandle);
+        }
+      }
+    }
 
     /// <summary>
     /// An adjustment done on a chunk

@@ -378,7 +378,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
           recordEvent($"WARNING {id} could not be set visible, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-          World.Debug.logError($"Attempting to set a chunk visible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+          World.Debug.logError($"Attempting to set a chunk {id} visible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
         }
       /// set invisible
       } else {

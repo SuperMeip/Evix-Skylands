@@ -29,11 +29,6 @@ namespace Evix.Terrain.Resolution {
     /// Update the adjustment queue with new adjustments based on focus movement.
     /// </summary>
     void updateAdjustmentsForFocusMovement();
-    
-    /// <summary>
-    /// Schedule the next adjustment job that's ready for this lens
-    /// </summary>
-    void scheduleNextChunkAdjustment();
 
     /// <summary>
     /// Have this lens check for and handle all of it's finished jobs
@@ -54,5 +49,11 @@ namespace Evix.Terrain.Resolution {
     /// <param name="aperture"></param>
     /// <returns></returns>
     bool tryToGetAperture(Chunk.Resolution resolution, out IChunkResolutionAperture aperture);
+
+    /// <summary>
+    /// Store a running job for this lens
+    /// </summary>
+    /// <param name="jobHandle"></param>
+    void storeJobHandle(ChunkResolutionAperture.ApetureJobHandle jobHandle);
   }
 }

@@ -41,9 +41,9 @@ namespace Evix.Terrain.Resolution {
 
         if (adjustment.type == FocusAdjustmentType.InFocus) {
           // if it's already meshed, we can drop it from the job queue
-          if (chunk.currentResolution == Chunk.Resolution.Meshed && adjustment.resolution == Chunk.Resolution.Meshed) {
+          if (chunk.currentResolution >= Chunk.Resolution.Meshed || chunk.currentResolution == Chunk.Resolution.UnLoaded) {
 #if DEBUG
-            chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, already at {chunk.currentResolution} resolution");
+            chunk.recordEvent($"Chunk invalid for in focus MeshGenerationAperture queue, currently at {chunk.currentResolution} resolution");
 #endif
             return false;
           }
@@ -95,7 +95,7 @@ namespace Evix.Terrain.Resolution {
 
                 return true;
               });
-              
+
               /// set mesh as empty if we don't need to load it
               if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus))) {
 #if DEBUG

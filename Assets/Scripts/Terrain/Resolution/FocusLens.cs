@@ -75,11 +75,18 @@ namespace Evix.Terrain.Resolution {
     /// <returns>the number of chunk nodes this focus will need for rendering</returns>
     public int initialize() {
       int chunksThatNeedARenderNode = 0;
-      foreach (IChunkResolutionAperture aperture in apeturesByPriority) {
-        int newAdjustments = aperture.updateAdjustmentsForFocusInitilization(focus);
-        if (aperture.resolution == Chunk.Resolution.Meshed) {
-          chunksThatNeedARenderNode = newAdjustments;
-        }
+
+      /// set up all the apeture's base bounds for their focus
+      foreach(IChunkResolutionAperture aperture in apeturesByPriority) {
+        aperture.initializeBounds(focus);
+      }
+
+      /// start by setting off all jobs for the base apeture
+      apeturesByPriority[0].updateAdjustmentsForFocusInitilization(focus);
+
+      /// check if there's a meshed component to this lens, if there is we'll need controllers, return how many we'll need.
+      if (tryToGetAperture(Chunk.Resolution.Meshed, out IChunkResolutionAperture meshAperture)) { 
+        chunksThatNeedARenderNode = meshAperture.managedChunkRadius * meshAperture.managedChunkRadius * meshAperture.managedChunkHeightRadius;
       }
 
       return chunksThatNeedARenderNode;
@@ -110,27 +117,10 @@ namespace Evix.Terrain.Resolution {
     #region Apeture Loop Functions
 
     /// <summary>
-    /// Schedule the next chunk adjustment job for this lens
-    /// </summary>
-    public void scheduleNextChunkAdjustment() {
-      // go through each apeture in reverse priorty order, and check if their
-      // next priorityqueue item is valid. return the first valid one.
-      for (int i = apeturesByPriority.Length - 1; i > -1; i--) {
-        IChunkResolutionAperture aperture = apeturesByPriority[i];
-        if (aperture.tryToGetNextAdjustmentJob(focus, out ChunkResolutionAperture.ApetureJobHandle jobHandle)) {
-          jobHandle.schedule();
-          if (!jobHandle.runSynchronously) {
-            runningJobs.Add(jobHandle);
-            return;
-          }
-        }
-      }
-    }
-
-    /// <summary>
     /// Handle all of the jobs that have finished for this lens
     /// </summary>
     public void handleFinishedJobs() {
+      // TODO: make this a run of like 10 or 30 job instead of all of them.
       runningJobs.RemoveAll(jobHandle => {
         if (jobHandle.jobIsComplete) {
           if (tryToGetAperture(jobHandle.job.adjustment.resolution, out IChunkResolutionAperture aperture)) {
@@ -180,6 +170,14 @@ namespace Evix.Terrain.Resolution {
     }
 
     /// <summary>
+    /// add a running job to the list of running jobs
+    /// </summary>
+    /// <param name="jobHandle"></param>
+    public void storeJobHandle(ChunkResolutionAperture.ApetureJobHandle jobHandle) {
+      runningJobs.Add(jobHandle);
+    }
+
+    /// <summary>
     /// Capture notifications about dirtied chunks
     /// </summary>
     /// <param name="event"></param>
@@ -192,10 +190,10 @@ namespace Evix.Terrain.Resolution {
             MarchingTetsMeshGenerator.ForEachDirtiedNeighbor(
               cde.chunkID,
               level,
-              neighboringChunk => aperture.addDirtyChunk(neighboringChunk.id, focus)
+              neighboringChunk => aperture.updateDirtyChunk(neighboringChunk.id, focus)
             );
             // then throw in the current chunk, so it's at position 0
-            aperture.addDirtyChunk(cde.chunkID, focus);
+            aperture.updateDirtyChunk(cde.chunkID, focus);
           }
         }
       }

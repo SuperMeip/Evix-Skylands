@@ -34,11 +34,17 @@ namespace Evix.Terrain.Resolution {
     }
 
     /// <summary>
+    /// Initialize this aperture for the given focus. Should set up managed bounds
+    /// </summary>
+    /// <param name="focus"></param>
+    void initializeBounds(ILevelFocus focus);
+
+    /// <summary>
     /// Try to get highest priority adjustment in this apeture's update queue, if it's valid
     /// </summary>
     /// <param name="adjustment"></param>
     /// <returns></returns>
-    bool tryToGetNextAdjustmentJob(ILevelFocus focus, out ChunkResolutionAperture.ApetureJobHandle jobHandle);
+    bool tryToGetAdjustmentJobHandle(ChunkResolutionAperture.Adjustment adjustment, out ChunkResolutionAperture.ApetureJobHandle jobHandle);
 
     /// <summary>
     /// Do work on the completion of a given job

@@ -105,23 +105,22 @@ namespace Evix.Managers {
       } else if (level == null) {
         throw new System.MissingMemberException("LevelManager Missing a Level, can't work");
       } else {
+        this.level = level;
+        runChunkManager = true;
+
         /// subscribe to async chunk updates
         World.EventSystem.subscribe(
           this,
           EventSystems.WorldEventSystem.Channels.ChunkActivationUpdates
         );
 
-        ///  init the level
-        this.level = level;
-        initilizePlayerFocus(initialFocus);
-
         /// start the manager job in a seperate thread
         chunkApertureManagerThread = new System.Threading.Thread(() => ManageLoadedChunks()) {
           Name = "Level Aperture Queue Manager"
         };
+        initilizePlayerFocus(initialFocus);
         chunkApertureManagerThread.Start();
         isLoaded = true;
-        runChunkManager = true;
       }
     }
 
@@ -131,10 +130,10 @@ namespace Evix.Managers {
     /// <param name="newFocus"></param>
     void initilizePlayerFocus(ILevelFocus newFocus) {
       IFocusLens newLens = level.addPlayerFocus(newFocus);
-      int requiredNewNodeCount = newLens.initialize();
+      int requiredControllerCount = newLens.initialize();
 
       // create the nodes the new lens will need to render
-      for (int i = 0; i < requiredNewNodeCount; i++) {
+      for (int i = 0; i < requiredControllerCount; i++) {
         ChunkController chunkController = Instantiate(ChunkPrefab).GetComponent<ChunkController>();
         chunkController.gameObject.SetActive(false);
         chunkController.gameObject.name = $"Chunk #{++currentMaxChunkObjectID}#";
@@ -242,7 +241,6 @@ namespace Evix.Managers {
           if (focus.isActive && focus.previousChunkID != focus.getUpdatedChunkID()) {
             lens.updateAdjustmentsForFocusMovement();
           }
-          lens.scheduleNextChunkAdjustment();
           lens.handleFinishedJobs();
         });
       }
@@ -332,7 +330,7 @@ namespace Evix.Managers {
     bool tryToAssignMeshedChunkToController(Coordinate chunkID, out ChunkController assignedController) {
       assignedController = null;
       Chunk chunk = level.getChunk(chunkID);
-      if (!chunk.meshIsEmpty /*TODO: || chunk.meshIsNewlyEmpty*/) {
+      if (!chunk.meshIsEmpty && chunk.currentResolution == Chunk.Resolution.Meshed /*TODO: || chunk.meshIsNewlyEmpty*/) {
         if (freeChunkControllerPool.TryDequeue(out ChunkController freeController)) {
           freeController.setChunkToMesh(chunkID, chunk);
           usedChunkControllers.TryAdd(chunkID, freeController);
@@ -344,16 +342,16 @@ namespace Evix.Managers {
         }
       } else {
         /// if the mesh is empty, we can just assing it as visible without assigning it to a controller
-        /*if (chunk.tryToLock(Chunk.Resolution.Visible)) {
+        /*if (chunk.tryToLock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus))) {
           chunk.setVisible(true);
-          chunk.unlock(Chunk.Resolution.Visible);
+          chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
           chunk.recordEvent($"generated mesh is empty, LevelManager dropping chunk");
           return true;
-        }
+        }*/
 
         // if we couldn't lock it to set it as visible, try again
-        return false;*/
-        // drop it and let the chunk visibility apeture drop it too now that it's meshed and empty
+        //return false;
+        // it isn't valid to wait for a controller, just drop it
         return true;
       }
     }
