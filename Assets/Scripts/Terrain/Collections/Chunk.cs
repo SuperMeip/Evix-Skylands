@@ -231,8 +231,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
         recordEvent($"Tried to unlock locked chunk {adjustmentLockType}, with incorrect type {lockType}");
 #endif
-        World.Debug.logError($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {adjustmentLockType}");
-        throw new System.AccessViolationException($"Wrong adjustment resolution type tried to unlock chunk: {lockType}. Expecting {adjustmentLockType}");
+        World.Debug.logAndThrowError<System.AccessViolationException>($"Wrong adjustment resolution type tried to unlock chunk {id}: {lockType}. Expecting {adjustmentLockType}");
       }
     }
 
@@ -272,7 +271,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
         recordEvent($"WARNING {id} could not set voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debug.logError($"Attempting to set voxel data on a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to set voxel data on chunk {id} without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 

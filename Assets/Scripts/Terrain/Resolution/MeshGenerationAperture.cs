@@ -18,66 +18,50 @@ namespace Evix.Terrain.Resolution {
         case FocusAdjustmentType.InFocus:
           /// we can only mesh a newly in focus chunk if it's at the loaded resolution.
           if (chunk.currentResolution == Chunk.Resolution.Loaded) {
-            /// if the chunk is solid and all neighbors covering it are also solid, we'll get no mesh, so we can skip it
-            if (chunk.isSolid) {
-              bool allBlockingNeighborsAreSolid = true;
-              MarchingTetsMeshGenerator.ForEachRequiredNeighbor(adjustment.chunkID, lens.level, (neigborID, neighborChunk) => {
-                // If the chunk is in out of bounds, it can't be solid
-                // if it's in bounds, check if it's loaded yet and isn't solid
-                if (!neigborID.isWithin(Coordinate.Zero, lens.level.chunkBounds)
-                  || (neighborChunk.currentResolution >= Chunk.Resolution.Loaded
-                  && !neighborChunk.isSolid)
-                ) {
-                  allBlockingNeighborsAreSolid = false;
-                  return false;
-                }
-
-                return true;
-              });
-
-              /// set mesh as empty if we don't need to load it
-              if (allBlockingNeighborsAreSolid) {
-                if (chunk.adjustmentLockType == (Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus)) {
-#if DEBUG
-                  chunk.recordEvent($"Chunk can skip MeshGenerationAperture queue, solid chunk is hidden. Setting empty mesh");
-#endif
-                  chunk.setMesh(default);
-                  return false;
-                } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
+            bool necessaryNeighborsAreLoaded = true;
+            bool necessaryNeighborsAreEmpty = chunk.isEmpty;
+            bool blockingNeighborsAreSolid = chunk.isSolid;
+            MarchingTetsMeshGenerator.ForEachRequiredNeighbor(adjustment.chunkID, lens.level, (neighborID, neighborChunk) => {
+              bool neighborIsWithinLevelBounds = neighborID.isWithin(Coordinate.Zero, lens.level.chunkBounds);
+              // check if they're loaded. out of bounds chunks will never be loaded and can be skipped 
+              if (neighborIsWithinLevelBounds && neighborChunk.currentResolution < Chunk.Resolution.Loaded) {
+                necessaryNeighborsAreLoaded = false;
+                return false;
               }
+
+              // out of bounds chunks will never be loaded and will always be empty, we only need to check in bounds chunks for empty
+              if (neighborIsWithinLevelBounds && !neighborChunk.isEmpty) {
+                necessaryNeighborsAreEmpty = false;
+              }
+
+              // only in bounds chunks can be solid, so if it's out of bounds or not solid, we mark it so.
+              if (!neighborIsWithinLevelBounds || !neighborChunk.isSolid) {
+                blockingNeighborsAreSolid = false;
+              }
+
+              return true;
+            });
+
+            if (!necessaryNeighborsAreLoaded) {
+#if DEBUG
+              chunk.recordEvent($"Chunk is not ready for MeshGenerationAperture job, Necessary neighbors not loaded yet.");
+#endif
+              return false;
             }
 
-            /// alternitively if it's loaded and empty, check if the chunks that require this one for rendering are also empty.
-            // if they are we can ignore this chunk for meshing
-            if (chunk.isEmpty) {
-              bool neighborsThatRequireThisChunkAreEmpty = true;
-              MarchingTetsMeshGenerator.ForEachRequiredNeighbor(adjustment.chunkID, lens.level, (neigborID, neighborChunk) => {
-                // if the chunk is out of bounds it can't be empty
-                if (neigborID.isWithin(Coordinate.Zero, lens.level.chunkBounds)
-                  // if it's in bounds and loaded, check if it's empty. If it's not we flag it!
-                  && neighborChunk.currentResolution >= Chunk.Resolution.Loaded
-                  && !neighborChunk.isEmpty
-                ) {
-                  neighborsThatRequireThisChunkAreEmpty = false;
-                  return false;
-                }
-
-                return true;
-              });
-
-              /// set mesh as empty if we don't need to load it
-              if (neighborsThatRequireThisChunkAreEmpty) {
-                if (chunk.adjustmentLockType == (Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus)) {
+            /// we don't need to load the mesh if it and it's neighbors are all solid or empty
+            if (blockingNeighborsAreSolid || necessaryNeighborsAreEmpty) {
+              /// set mesh as empty
+              if (chunk.adjustmentLockType == (Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus)) {
 #if DEBUG
-                  chunk.recordEvent($"Chunk can skip MeshGenerationAperture queue, chunk is empty and has no dependent neighbors. Setting empty mesh");
+                chunk.recordEvent($"Chunk can skip MeshGenerationAperture queue, {(blockingNeighborsAreSolid ? "solid chunk is hidden" : "required neighbors are all empty")}. Setting empty mesh");
 #endif
-                  chunk.setMesh(default);
-                  return false;
-                } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
-              }
+                chunk.setMesh(default);
+                return false;
+              } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
             }
 
-            /// if the chunk is loaded and passed the solid and empty tests, it's valid
+            /// if the chunk is loaded and passed the solid and empty tests, and has it's neighbors loaded, it's valid
             return true;
           } else {
             /// if the chunk is already meshed we can drop it.
@@ -95,10 +79,10 @@ namespace Evix.Terrain.Resolution {
             }
           }
         case FocusAdjustmentType.OutOfFocus:
-          /// if the resolution is already less than meshed, we can drop it
-          if (chunk.currentResolution < Chunk.Resolution.Meshed) {
+          /// if the resolution is already less than meshed, we can drop it, or if it's still visible it needs to be turned off first
+          if (chunk.currentResolution != Chunk.Resolution.Meshed) {
 #if DEBUG
-            chunk.recordEvent($"Chunk invalid for out of focus MeshGenerationAperture job, chunk is already below meshed resolution at {chunk.currentResolution}");
+            chunk.recordEvent($"Chunk invalid for out of focus MeshGenerationAperture job, not at correct resolution MESHED, at resolution: {chunk.currentResolution}");
 #endif
             return false;
           }

@@ -268,11 +268,15 @@ namespace Evix.Managers {
               chunksToMesh.enqueue(0, dirtyController);
             }
           }
-          if (tryToAssignMeshedChunkToController(cmfle.adjustment.chunkID, out ChunkController assignedController) && assignedController != null) {
-            chunksToMesh.enqueue(level.getPriorityForAdjustment(cmfle.adjustment), assignedController);
+          if (tryToAssignMeshedChunkToController(cmfle.adjustment.chunkID, out ChunkController assignedController)) {
+            if (assignedController != null) {
+              chunksToMesh.enqueue(level.getPriorityForAdjustment(cmfle.adjustment), assignedController);
 #if DEBUG
-            level.getChunk(cmfle.adjustment.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
+              level.getChunk(cmfle.adjustment.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
+            } else {
+              level.getChunk(cmfle.adjustment.chunkID).recordEvent($"NOT added to chunksToMesh Level Manager queue. No Controller was assigned.");
 #endif
+            }
           } else {
             chunksWaitingForAFreeController.enqueue(level.getPriorityForAdjustment(cmfle.adjustment), cmfle.adjustment);
 #if DEBUG
@@ -341,8 +345,18 @@ namespace Evix.Managers {
           return false;
         }
       } else {
-        // it isn't valid to wait for a controller, just drop it
-        return true;
+        /// if the mesh is empty, we can just mark it as visible without assigning it to a controller
+        if (chunk.tryToLock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus))) {
+#if DEBUG
+          chunk.recordEvent($"Generated mesh is empty, LevelManager dropping chunk waiting on controller.");
+#endif
+          chunk.setVisible(true);
+          chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
+          return true;
+        }
+
+        // if we couldn't lock it to set it as visible, try again
+        return false;
       }
     }
 

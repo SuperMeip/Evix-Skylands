@@ -547,7 +547,7 @@ namespace Evix.Terrain.Resolution {
         || (chunkIsInFocusBounds && adjustment.type == FocusAdjustmentType.OutOfFocus)
       ) {
 #if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Aperture Type {GetType()} has dropped out of bounds adjustment: {adjustment}");
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Aperture {GetType().Name} has dropped out of bounds adjustment: {(adjustment.resolution, adjustment.type)}");
 #endif
         return false;
       }
