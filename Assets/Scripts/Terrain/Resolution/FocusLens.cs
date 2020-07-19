@@ -121,17 +121,23 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     public void handleFinishedJobs() {
       // TODO: make this a run of like 10 or 30 job instead of all of them.
-      runningJobs.RemoveAll(jobHandle => {
+      int queueBottleneck = 20;
+      for (int index = 0; (index < runningJobs.Count) && (queueBottleneck-- > 0); index++) {
+        ChunkResolutionAperture.ApetureJobHandle jobHandle;
+        lock (runningJobs) {
+          jobHandle = runningJobs[index];
+          runningJobs.RemoveAt(index);
+        }
         if (jobHandle.jobIsComplete) {
           if (tryToGetAperture(jobHandle.job.adjustment.resolution, out IChunkResolutionAperture aperture)) {
             aperture.onJobComplete(jobHandle.job);
           }
 
-          return true;
+          continue;
         }
 
-        return false;
-      });
+        runningJobs.Insert(index + 1, jobHandle);
+      }
     }
 
     /// <summary>

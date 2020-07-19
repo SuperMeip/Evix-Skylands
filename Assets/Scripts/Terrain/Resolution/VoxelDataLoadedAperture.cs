@@ -66,12 +66,14 @@ namespace Evix.Terrain.Resolution {
     public override void onJobComplete(IAdjustmentJob job) {
       /// since neighbors may need this chunk to load, check if this one loading makes them ready to mesh:
       /// TODO: check if ForEachDirtiedNeighbor is the right set of neighbors, we may be able to use less
-      if (job.adjustment.type == FocusAdjustmentType.InFocus) {
+      if (job.adjustment.type == FocusAdjustmentType.InFocus
+        && lens.tryToGetAperture(resolution + 1, out IChunkResolutionAperture nextApetureInLine)
+      ) {
         MarchingTetsMeshGenerator.ForEachDirtiedNeighbor(job.adjustment.chunkID, lens.level, chunk => {
+          if (chunk.currentResolution == Chunk.Resolution.Loaded) {
 #if DEBUG
-          lens.level.getChunk(chunk.id).recordEvent($"Attempting to get apeture job for {(Chunk.Resolution.Meshed, job.adjustment.type)} from neighbor");
+            lens.level.getChunk(chunk.id).recordEvent($"Attempting to get apeture job for {(Chunk.Resolution.Meshed, job.adjustment.type)} from neighbor");
 #endif
-          if (lens.tryToGetAperture(resolution + 1, out IChunkResolutionAperture nextApetureInLine)) {
             if (nextApetureInLine.tryToGetAdjustmentJobHandle(
               new Adjustment(
                 chunk.id,

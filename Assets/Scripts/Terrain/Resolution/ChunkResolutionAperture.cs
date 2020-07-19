@@ -1,15 +1,14 @@
 using Evix.Terrain.Collections;
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Evix.Terrain.Resolution {
 
-  // TODO: Add static global timer singleton to track times for things in DEBUG mode
+  // TODO: Combine isReady and isValid as they're used in one context now.
+
+  // TODO: pass job handles a callback to their aperture's onComplete so they can complete w/out queue?
 
   /// <summary>
   /// An area that manages the resolution of chunks within it
@@ -192,10 +191,11 @@ namespace Evix.Terrain.Resolution {
     /// <param name="focus"></param>
     public void updateAdjustmentsForFocusLocationChange(ILevelFocus focus) {
       List<Adjustment> chunkAdjustments = new List<Adjustment>();
+      Coordinate[] oldManagedChunkBounds = managedChunkBounds;
       Coordinate[] newManagedChunkBounds = getManagedChunkBounds(focus);
 
       /// just get the new in focus chunks for the whole managed area
-      managedChunkBounds[0].until(managedChunkBounds[1], inFocusChunkLocation => {
+      newManagedChunkBounds[0].until(newManagedChunkBounds[1], inFocusChunkLocation => {
         chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id));
 #if DEBUG
         lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
@@ -204,6 +204,9 @@ namespace Evix.Terrain.Resolution {
 
       /// sort them by distance to the player
       chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, focus));
+
+      /// update the new managed bounds
+      managedChunkBounds = newManagedChunkBounds;
 
       /// run adjustments
       foreach(Adjustment adjustment in chunkAdjustments) {
@@ -214,7 +217,7 @@ namespace Evix.Terrain.Resolution {
       }
 
       /// see if we should get newly out of focus chunks
-      managedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
+      oldManagedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
         if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
           jobHandle.schedule();
@@ -224,9 +227,6 @@ namespace Evix.Terrain.Resolution {
         lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.OutOfFocus)}");
 #endif
       });
-
-      /// update the new managed bounds
-      managedChunkBounds = newManagedChunkBounds;
     }
 
     /// <summary>
