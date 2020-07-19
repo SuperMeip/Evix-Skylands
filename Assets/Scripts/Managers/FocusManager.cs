@@ -131,9 +131,10 @@ namespace Evix.Managers {
     }
 
     #endregion
-
+    
+#if UNITY_EDITOR
     #region Unity Gizmos
-#if UNITY_EDITOR/// <summary>
+    /// <summary>
     /// Draw the managed Lens around this focus
     /// </summary>
     void OnDrawGizmos() {
@@ -180,13 +181,12 @@ namespace Evix.Managers {
         ) * Chunk.Diameter);
       }
     }
-#endif
     #endregion
+#endif
   }
 
-
-  #region Unity Custom Inspector
 #if UNITY_EDITOR
+  #region Unity Custom Inspector
   /// <summary>
   /// Show off the chunk ID
   /// </summary>
@@ -208,6 +208,6 @@ namespace Evix.Managers {
       }
     }
   }
-#endif
   #endregion
+#endif
 }

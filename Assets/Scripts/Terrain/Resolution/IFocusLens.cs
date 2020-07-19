@@ -31,11 +31,6 @@ namespace Evix.Terrain.Resolution {
     void updateAdjustmentsForFocusMovement();
 
     /// <summary>
-    /// Have this lens check for and handle all of it's finished jobs
-    /// </summary>
-    void handleFinishedJobs();
-
-    /// <summary>
     /// Get the calculated priority of an adjustment for this lens
     /// </summary>
     /// <param name="adjustment"></param>
@@ -50,10 +45,25 @@ namespace Evix.Terrain.Resolution {
     /// <returns></returns>
     bool tryToGetAperture(Chunk.Resolution resolution, out IChunkResolutionAperture aperture);
 
+#if DEBUG
     /// <summary>
-    /// Store a running job for this lens
+    /// Count a running job for this len's apeture
     /// </summary>
     /// <param name="jobHandle"></param>
-    void storeJobHandle(ChunkResolutionAperture.ApetureJobHandle jobHandle);
+    void incrementRunningJobCount(Chunk.Resolution forApertureOfResolution);
+
+    /// <summary>
+    /// Removing a runing job from this len's aperture job count
+    /// </summary>
+    /// <param name="jobHandle"></param>
+    void decrementRunningJobCount(Chunk.Resolution forApertureOfResolution);
+
+    /// <summary>
+    /// Get the running job count indexed by the aperture resolutions this chunk uses.
+    /// for reporting
+    /// </summary>
+    /// <returns></returns>
+    List<(int count, string apertureType)> getRunningJobCountPerAperture();
   }
+#endif
 }

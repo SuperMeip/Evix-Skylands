@@ -33,12 +33,6 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     readonly IChunkResolutionAperture[] apeturesByPriority;
 
-    /// <summary>
-    /// All running jobs
-    /// </summary>
-    readonly List<ChunkResolutionAperture.ApetureJobHandle> runningJobs
-      = new List<ChunkResolutionAperture.ApetureJobHandle>();
-
     #region Constructors and Initialization
 
     /// <summary>
@@ -117,30 +111,6 @@ namespace Evix.Terrain.Resolution {
     #region Apeture Loop Functions
 
     /// <summary>
-    /// Handle all of the jobs that have finished for this lens
-    /// </summary>
-    public void handleFinishedJobs() {
-      // TODO: make this a run of like 10 or 30 job instead of all of them.
-      int queueBottleneck = 20;
-      for (int index = 0; (index < runningJobs.Count) && (queueBottleneck-- > 0); index++) {
-        ChunkResolutionAperture.ApetureJobHandle jobHandle;
-        lock (runningJobs) {
-          jobHandle = runningJobs[index];
-          runningJobs.RemoveAt(index);
-        }
-        if (jobHandle.jobIsComplete) {
-          if (tryToGetAperture(jobHandle.job.adjustment.resolution, out IChunkResolutionAperture aperture)) {
-            aperture.onJobComplete(jobHandle.job);
-          }
-
-          continue;
-        }
-
-        runningJobs.Insert(index + 1, jobHandle);
-      }
-    }
-
-    /// <summary>
     /// Update each apeture whenever the focus this lens is focused on moves
     /// </summary>
     public void updateAdjustmentsForFocusMovement() {
@@ -176,14 +146,6 @@ namespace Evix.Terrain.Resolution {
     }
 
     /// <summary>
-    /// add a running job to the list of running jobs
-    /// </summary>
-    /// <param name="jobHandle"></param>
-    public void storeJobHandle(ChunkResolutionAperture.ApetureJobHandle jobHandle) {
-      runningJobs.Add(jobHandle);
-    }
-
-    /// <summary>
     /// Capture notifications about dirtied chunks
     /// </summary>
     /// <param name="event"></param>
@@ -204,6 +166,45 @@ namespace Evix.Terrain.Resolution {
         }
       }
     }
+
+#if DEBUG
+    /// <summary>
+    /// All running job counts for debugging
+    /// </summary>
+    readonly int[] runningJobCounts
+      = new int[(int)Chunk.Resolution.Count];
+
+    /// <summary>
+    /// add a running job to the count of jobs running for a given aperture
+    /// </summary>
+    /// <param name="jobHandle"></param>
+    public void incrementRunningJobCount(Chunk.Resolution forApertureOfResolution) {
+      runningJobCounts[(int)forApertureOfResolution]++;
+    }
+
+    /// <summary>
+    /// remove a count from the jobs running for a given aperture
+    /// </summary>
+    /// <param name="jobHandle"></param>
+    public void decrementRunningJobCount(Chunk.Resolution forApertureOfResolution) {
+      runningJobCounts[(int)forApertureOfResolution]--;
+    }
+
+    /// <summary>
+    /// Get the running count results
+    /// </summary>
+    /// <returns></returns>
+    public List<(int count, string apertureType)> getRunningJobCountPerAperture() {
+      List<(int, string)> results = new List<(int, string)>();
+      for(Chunk.Resolution resolution = Chunk.Resolution.Loaded; resolution < Chunk.Resolution.Count; resolution++) {
+        if (tryToGetAperture(resolution, out IChunkResolutionAperture aperture)) {
+          results.Add((runningJobCounts[(int)resolution], aperture.GetType().Name));
+        }
+      }
+
+      return results;
+    }
+#endif
 
     #endregion
   }

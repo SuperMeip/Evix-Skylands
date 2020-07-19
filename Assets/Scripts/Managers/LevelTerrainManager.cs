@@ -6,6 +6,7 @@ using Evix.Terrain.Resolution;
 using UnityEngine;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using UnityEditor;
 
 namespace Evix.Managers {
 
@@ -209,7 +210,7 @@ namespace Evix.Managers {
       if (chunksToDeactivate.tryDequeue(out KeyValuePair<float, Coordinate> deactivatedChunkLocation)) {
         if (tryToGetAssignedChunkController(deactivatedChunkLocation.Value, out ChunkController assignedController)) {
           assignedController.setVisible(false);
-        // if there's no controller found then it was never set active and we can just drop it too
+          // if there's no controller found then it was never set active and we can just drop it too
         } else {
           Chunk chunkToSetInvisible = level.getChunk(deactivatedChunkLocation.Value);
 #if DEBUG
@@ -241,7 +242,6 @@ namespace Evix.Managers {
           if (focus.isActive && focus.previousChunkID != focus.getUpdatedChunkID()) {
             lens.updateAdjustmentsForFocusMovement();
           }
-          lens.handleFinishedJobs();
         });
       }
     }
@@ -255,7 +255,7 @@ namespace Evix.Managers {
     /// <param name="origin">(optional) the source of the event</param>
     public void notifyOf(IEvent @event) {
       // ignore events if we have no level to control
-      if (!isLoaded || level == null) {
+      if (level == null) {
         return;
       }
 
@@ -263,7 +263,7 @@ namespace Evix.Managers {
         // when a chunk mesh comes into focus, or loads, set the mesh to a chunkManager
         case MeshGenerationAperture.ChunkMeshLoadingFinishedEvent cmfle:
           if (cmfle.adjustment.type == ChunkResolutionAperture.FocusAdjustmentType.Dirty) {
-            if(tryToGetAssignedChunkController(cmfle.adjustment.chunkID, out ChunkController dirtyController)) {
+            if (tryToGetAssignedChunkController(cmfle.adjustment.chunkID, out ChunkController dirtyController)) {
               dirtyController.setChunkToMesh(cmfle.adjustment.chunkID, level.getChunk(cmfle.adjustment.chunkID));
               chunksToMesh.enqueue(0, dirtyController);
             }
@@ -330,7 +330,7 @@ namespace Evix.Managers {
     bool tryToAssignMeshedChunkToController(Coordinate chunkID, out ChunkController assignedController) {
       assignedController = null;
       Chunk chunk = level.getChunk(chunkID);
-      if (!chunk.meshIsEmpty && chunk.currentResolution == Chunk.Resolution.Meshed /*TODO: || chunk.meshIsNewlyEmpty*/) {
+      if (!chunk.meshIsEmpty && chunk.currentResolution == Chunk.Resolution.Meshed) {
         if (freeChunkControllerPool.TryDequeue(out ChunkController freeController)) {
           freeController.setChunkToMesh(chunkID, chunk);
           usedChunkControllers.TryAdd(chunkID, freeController);
@@ -341,16 +341,6 @@ namespace Evix.Managers {
           return false;
         }
       } else {
-        /// if the mesh is empty, we can just assing it as visible without assigning it to a controller
-        /*if (chunk.tryToLock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus))) {
-          chunk.setVisible(true);
-          chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
-          chunk.recordEvent($"generated mesh is empty, LevelManager dropping chunk");
-          return true;
-        }*/
-
-        // if we couldn't lock it to set it as visible, try again
-        //return false;
         // it isn't valid to wait for a controller, just drop it
         return true;
       }
@@ -376,7 +366,7 @@ namespace Evix.Managers {
       chunkController = null;
 
       /// check used chunks
-      foreach(ChunkController controller in usedChunkControllers.Values) {
+      foreach (ChunkController controller in usedChunkControllers.Values) {
         if (controller.gameObject.name.Contains($"#{chunkControllerID}#")) {
           chunkController = controller;
 
@@ -385,7 +375,7 @@ namespace Evix.Managers {
       }
 
       /// check free chunks
-      foreach(ChunkController controller in freeChunkControllerPool) {
+      foreach (ChunkController controller in freeChunkControllerPool) {
         if (controller.gameObject.name.Contains($"#{chunkControllerID}#")) {
           chunkController = controller;
 
@@ -398,4 +388,31 @@ namespace Evix.Managers {
 
     #endregion
   }
+
+#if UNITY_EDITOR
+  #region Unity Custom Inspector
+  [CustomEditor(typeof(LevelTerrainManager))]
+  public class LevelDataTesterGUI : Editor {
+    public override void OnInspectorGUI() {
+      DrawDefaultInspector();
+
+      EditorGUI.BeginDisabledGroup(true);
+      EditorGUILayout.LabelField("Lens Info:", "-----");
+      LevelTerrainManager terrainManager = target as LevelTerrainManager;
+      if (terrainManager.level != null) {
+        terrainManager.level.forEachFocalLens((lens, focus) => {
+          EditorGUILayout.Space();
+          EditorGUILayout.LabelField("Lens:", $"{lens.GetType().Name} focused on #{focus.id}");
+          EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+          EditorGUILayout.LabelField("Running Jobs Per Aperture:");
+          foreach ((int runningJobCount, string apertureName) in lens.getRunningJobCountPerAperture()) {
+            EditorGUILayout.IntField(apertureName, runningJobCount);
+          }
+        });
+      }
+
+    }
+  }
+  #endregion
+#endif
 }

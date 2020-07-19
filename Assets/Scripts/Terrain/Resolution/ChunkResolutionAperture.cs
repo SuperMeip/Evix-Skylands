@@ -6,10 +6,6 @@ using System.Threading.Tasks;
 
 namespace Evix.Terrain.Resolution {
 
-  // TODO: Combine isReady and isValid as they're used in one context now.
-
-  // TODO: pass job handles a callback to their aperture's onComplete so they can complete w/out queue?
-
   /// <summary>
   /// An area that manages the resolution of chunks within it
   /// </summary>
@@ -100,25 +96,13 @@ namespace Evix.Terrain.Resolution {
     #region IChunkResolutionAperture API Functions
 
     /// <summary>
-    /// Check if this adjustment is valid for this aperture still.
+    /// Check if the chunk is validated and ready
+    /// This function is called on locked chunks, and false should result in the chunk being unlocked.
     /// </summary>
     /// <param name="adjustment"></param>
     /// <param name="chunk"></param>
     /// <returns></returns>
-    internal virtual bool isValid(Adjustment adjustment, out Chunk chunk) {
-      chunk = lens.level.getChunk(adjustment.chunkID);
-
-      return true;
-    }
-
-    /// <summary>
-    /// Check if this adjustment is ready to schedule a job for.
-    /// </summary>
-    /// <param name="adjustment"></param>
-    /// <returns></returns>
-    protected virtual bool isReady(Adjustment adjustment, Chunk validatedChunk) {
-      return true;
-    }
+    protected abstract bool isValidAndReady(Adjustment adjustment, Chunk chunk);
 
     /// <summary>
     /// Construct a job for this adjustment to be scheduled.
@@ -127,12 +111,88 @@ namespace Evix.Terrain.Resolution {
     /// <returns></returns>
     protected abstract ApetureJobHandle getJob(Adjustment adjustment);
 
+    /// <summary>
+    /// Do work on the completion of a job
+    /// </summary>
+    /// <param name="job"></param>
+    public virtual void onJobComplete(IAdjustmentJob job) {
+#if DEBUG
+      lens.decrementRunningJobCount(job.adjustment.resolution);
+#endif
+      /// dirty jobs don't effect the chain
+      if (job.adjustment.type == FocusAdjustmentType.Dirty) {
+        return;
+      }
+
+      /// try to pass along the adjustment to the next aperture in line, up the line if it's in focus, down the line if it's out
+      Chunk.Resolution nextResolutionInLine = resolution + (job.adjustment.type == FocusAdjustmentType.InFocus ? 1 : -1);
+      if (lens.tryToGetAperture(nextResolutionInLine, out IChunkResolutionAperture nextApetureInLine)) {
+#if DEBUG
+        lens.level.getChunk(job.adjustment.chunkID).recordEvent($"Handing adjustment to next apeture in line: {(nextResolutionInLine, job.adjustment.type)}");
+#endif
+        if (nextApetureInLine.tryToGetAdjustmentJobHandle(
+          new Adjustment(
+            job.adjustment.chunkID,
+            job.adjustment.type,
+            nextResolutionInLine,
+            job.adjustment.focusID
+          ),
+          out ApetureJobHandle jobHandle
+        )) {
+          jobHandle.schedule();
+#if DEBUG
+          lens.incrementRunningJobCount(nextResolutionInLine);
+#endif
+        }
+      }
+    }
+
     #endregion
 
     #region Lens Adjustment API
 
+    /// <summary>
+    /// Init the chunk bounds for a new focus
+    /// </summary>
+    /// <param name="focus"></param>
     public void initializeBounds(ILevelFocus focus) {
       managedChunkBounds = getManagedChunkBounds(focus);
+    }
+
+    /// <summary>
+    /// Try to get the handle used to schedule a job for a valid adjustment
+    /// </summary>
+    /// <param name="adjustment"></param>
+    /// <param name="jobHandle"></param>
+    /// <returns></returns>
+    public bool tryToGetAdjustmentJobHandle(Adjustment adjustment, out ApetureJobHandle jobHandle) {
+      jobHandle = null;
+      Chunk chunk = lens.level.getChunk(adjustment.chunkID);
+      /// try to lock the chunk
+      if (!chunk.isLockedForWork && chunk.tryToLock((adjustment.resolution, adjustment.type))) {
+        /// if it's in bounds and valid we get the job, otherwise we can't make a job
+        if (!isWithinManagedBounds(adjustment) || !isValidAndReady(adjustment, chunk)) {
+#if DEBUG
+          lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk not valid or ready for job: {(adjustment.resolution, adjustment.type)}. Dropped");
+#endif
+          /// unlock on invalidation
+          chunk.unlock((adjustment.resolution, adjustment.type));
+          return false;
+        } else {
+#if DEBUG
+          lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk is ready for job: {(adjustment.resolution, adjustment.type)}. Spinning up!");
+          lens.incrementRunningJobCount(adjustment.resolution);
+#endif
+          jobHandle = getJob(adjustment);
+          return true;
+        }
+      } else {
+#if DEBUG
+        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk could not be locked for job: {(adjustment.resolution, adjustment.type)}, already has lock: {chunk.adjustmentLockType}. Dropped");
+#endif
+        /// lock attempt failed
+        return false;
+      }
     }
 
     /// <summary>
@@ -151,8 +211,8 @@ namespace Evix.Terrain.Resolution {
         out ApetureJobHandle jobHandle
       )) {
         jobHandle.schedule();
-        lens.storeJobHandle(jobHandle);
 #if DEBUG
+        lens.incrementRunningJobCount(resolution);
         lens.level.getChunk(chunkID).recordEvent($"Apeture type {GetType()} for {resolution} resolution has been notified this chunk is dirty");
 #endif
       }
@@ -212,20 +272,24 @@ namespace Evix.Terrain.Resolution {
       foreach(Adjustment adjustment in chunkAdjustments) {
         if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
           jobHandle.schedule();
-          lens.storeJobHandle(jobHandle);
+#if DEBUG
+          lens.incrementRunningJobCount(adjustment.resolution);
+#endif
         }
       }
 
       /// see if we should get newly out of focus chunks
       oldManagedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
-        if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
-          jobHandle.schedule();
-          lens.storeJobHandle(jobHandle);
-        }
 #if DEBUG
         lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.OutOfFocus)}");
 #endif
+        if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
+          jobHandle.schedule();
+#if DEBUG
+          lens.incrementRunningJobCount(adjustment.resolution);
+#endif
+        }
       });
     }
 
@@ -247,42 +311,6 @@ namespace Evix.Terrain.Resolution {
       return distancePriority;
     }
 
-    /// <summary>
-    /// Try to get the handle used to schedule a job for a valid adjustment
-    /// </summary>
-    /// <param name="adjustment"></param>
-    /// <param name="jobHandle"></param>
-    /// <returns></returns>
-    public bool tryToGetAdjustmentJobHandle(Adjustment adjustment, out ApetureJobHandle jobHandle) {
-      jobHandle = null;
-      if (!isWithinManagedBounds(adjustment) || !isValid(adjustment, out Chunk validatedChunk)) {
-#if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk not valid for job: {(adjustment.resolution, adjustment.type)}. Dropped");
-#endif
-        return false;
-      }
-
-      // if the item is not locked by another job, check if it's ready
-      // if it's ready, we'll try to lock it so this aperture can work on it
-      if (!validatedChunk.isLockedForWork
-        && isReady(adjustment, validatedChunk)
-        && validatedChunk.tryToLock((adjustment.resolution, adjustment.type))
-      ) {
-#if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk is ready for job: {(adjustment.resolution, adjustment.type)}. Spinning up!");
-#endif
-        jobHandle = getJob(adjustment);
-        lens.storeJobHandle(jobHandle);
-        return true;
-      } else {
-#if DEBUG
-        lens.level.getChunk(adjustment.chunkID).recordEvent($"Chunk not ready for job: {(adjustment.resolution, adjustment.type)}. Dropped");
-#endif
-      }
-
-      return false;
-    }
-
 
     /// <summary>
     /// Comparer for comparing two keys, handling equality as beeing greater
@@ -302,37 +330,6 @@ namespace Evix.Terrain.Resolution {
       }
 
       #endregion
-    }
-
-    /// <summary>
-    /// Do work on the completion of a job
-    /// </summary>
-    /// <param name="job"></param>
-    public virtual void onJobComplete(IAdjustmentJob job) {
-      /// dirty jobs don't effect the chain
-      if (job.adjustment.type == FocusAdjustmentType.Dirty) {
-        return;
-      }
-
-      /// try to pass along the adjustment to the next aperture in line, up the line if it's in focus, down the line if it's out
-      Chunk.Resolution nextResolutionInLine = resolution + (job.adjustment.type == FocusAdjustmentType.InFocus ? 1 : -1);
-      if (lens.tryToGetAperture(nextResolutionInLine, out IChunkResolutionAperture nextApetureInLine)) {
-#if DEBUG
-        lens.level.getChunk(job.adjustment.chunkID).recordEvent($"Handing adjustment to next apeture in line: {(nextResolutionInLine, job.adjustment.type)}");
-#endif
-        if (nextApetureInLine.tryToGetAdjustmentJobHandle(
-          new Adjustment(
-            job.adjustment.chunkID,
-            job.adjustment.type,
-            nextResolutionInLine,
-            job.adjustment.focusID
-          ),
-          out ApetureJobHandle jobHandle
-        )) {
-          jobHandle.schedule();
-          lens.storeJobHandle(jobHandle);
-        }
-      }
     }
 
     /// <summary>
@@ -409,10 +406,17 @@ namespace Evix.Terrain.Resolution {
       public readonly bool runSynchronously;
 
       /// <summary>
+      /// The callback to call when the job is done
+      /// </summary>
+      readonly Action<IAdjustmentJob> onCompleteCallback;
+
+      /// <summary>
       /// Check if the job completed
       /// </summary>
       public bool jobIsComplete {
-        get => task != null && task.IsCompleted;
+        get => runSynchronously 
+          ? _isCompleted 
+          : task != null && task.IsCompleted;
       }
 
       /// <summary>
@@ -421,11 +425,21 @@ namespace Evix.Terrain.Resolution {
       Task task;
 
       /// <summary>
+      /// Used for sync runs to track completion
+      /// </summary>
+      bool _isCompleted;
+
+      /// <summary>
       /// Make a new handle for a job
       /// </summary>
       /// <param name="job"></param>
-      public ApetureJobHandle(IAdjustmentJob job, bool runSynchronously = false) {
+      public ApetureJobHandle(
+        IAdjustmentJob job,
+        Action<IAdjustmentJob> onCompleteCallback = null,
+        bool runSynchronously = false
+      ) {
         this.job = job;
+        this.onCompleteCallback = onCompleteCallback;
         this.runSynchronously = runSynchronously;
         task = null;
       }
@@ -435,11 +449,22 @@ namespace Evix.Terrain.Resolution {
       /// </summary>
       public void schedule() {
         if (!runSynchronously) {
-          task = new Task(() => job.doWork());
+          task = new Task(
+            () => runJob()
+          );
           task.Start();
         } else {
-          job.doWork();
+          runJob();
+          _isCompleted = true;
         }
+      }
+
+      /// <summary>
+      /// Run the job
+      /// </summary>
+      void runJob() {
+        job.doWork();
+        onCompleteCallback?.Invoke(job);
       }
     }
 

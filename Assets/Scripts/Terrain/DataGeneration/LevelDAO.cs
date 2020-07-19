@@ -10,15 +10,13 @@ namespace Evix.Terrain.DataGeneration {
 
   /// <summary>
   /// Class for accessing level data from files
-  /// TODO, this should become an object made in the Level constructor, with file names pre-generated that's grabbed by the apeture from the level {get}
   /// </summary>
   public static class LevelDAO {
 
     /// <summary>
     /// A regex we can use to remove illegal file name chars.
-    /// TODO: move this to Level's constructor so we only need to construct the level's file safe name once.
     /// </summary>
-    static readonly Regex IllegalCharactersForFileName = new Regex(
+    public static readonly Regex IllegalCharactersForFileName = new Regex(
       string.Format("[{0}]",
       Regex.Escape(new string(Path.GetInvalidFileNameChars()))),
       RegexOptions.Compiled
@@ -33,18 +31,19 @@ namespace Evix.Terrain.DataGeneration {
     /// <param name="level"></param>
     /// <returns></returns>
     public static bool ChunkFileExists(Coordinate chunkID, Level level) {
-      return File.Exists(GetChunkDataFileName(chunkID, level.name));
+      return File.Exists(GetChunkDataFileName(chunkID, level.legalFileSaveName));
     }
 
     /// <summary>
     /// Get the voxeldata for a chunk location from file
     /// </summary>
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
     /// <returns>False if the chunk is empty</returns>
-    static bool GetDataForChunkFromFile(Coordinate chunkId, string levelName, out ChunkSaveData chunkData) {
+    static bool GetDataForChunkFromFile(Coordinate chunkId, string legalLevelSaveName, out ChunkSaveData chunkData) {
       chunkData = default;
       IFormatter formatter = new BinaryFormatter();
       Stream readStream = new FileStream(
-        GetChunkDataFileName(chunkId, levelName),
+        GetChunkDataFileName(chunkId, legalLevelSaveName),
         FileMode.Open,
         FileAccess.Read,
         FileShare.Read
@@ -66,11 +65,11 @@ namespace Evix.Terrain.DataGeneration {
     /// Only to be used by jobs
     /// Save a chunk to file
     /// </summary>
-    /// <param name="chunkLocation"></param>
-    static public void SaveChunkDataToFile(Coordinate chunkId, string levelName, ChunkSaveData chunkData) {
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
+    static public void SaveChunkDataToFile(Coordinate chunkId, string legalLevelSaveName, ChunkSaveData chunkData) {
       /*IFormatter formatter = new BinaryFormatter();
       CheckForSaveDirectory(levelName);
-      Stream stream = new FileStream(GetChunkDataFileName(chunkId, levelName), FileMode.Create, FileAccess.Write, FileShare.None);
+      Stream stream = new FileStream(GetChunkDataFileName(chunkId, legalLevelSaveName), FileMode.Create, FileAccess.Write, FileShare.None);
       formatter.Serialize(stream, chunkData);
       stream.Close();*/
     }
@@ -78,39 +77,41 @@ namespace Evix.Terrain.DataGeneration {
     /// <summary>
     /// Get the file name a chunk is saved to based on it's location
     /// </summary>
-    /// <param name="chunkLocation">the location of the chunk</param>
+    /// <param name="chunkID">the location of the chunk</param>
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
     /// <returns></returns>
-    static string GetChunkDataFileName(Coordinate chunkID, string levelName) {
-      return $"{GetChunkDataFolder(levelName)}{chunkID}.evxch";
+    static string GetChunkDataFileName(Coordinate chunkID, string legalLevelSaveName) {
+      return $"{GetChunkDataFolder(legalLevelSaveName)}{chunkID}.evxch";
     }
 
     /// <summary>
     /// Get the name of the folder we use to store chunk data for this level
     /// </summary>
-    /// <param name="levelName"></param>
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
     /// <returns></returns>
-    static string GetChunkDataFolder(string levelName) {
-      return $"{GetLevelFolder(levelName)}chunkdata/";
+    static string GetChunkDataFolder(string legalLevelSaveName) {
+      return $"{GetLevelFolder(legalLevelSaveName)}chunkdata/";
     }
 
     /// <summary>
     /// Get the save directory for the given level
     /// </summary>
-    /// <param name="level"></param>
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
     /// <returns></returns>
-    static string GetLevelFolder(string levelName) {
-      return $"{World.GameSaveFilePath}/leveldata/{IllegalCharactersForFileName.Replace(levelName, "")}/";
+    static string GetLevelFolder(string legalLevelSaveName) {
+      return $"{World.GameSaveFilePath}/leveldata/{legalLevelSaveName}/";
     }
 
     /// <summary>
     /// Create the save file directory if it doesn't exist for the level yet
     /// </summary>
-    static void CheckForSaveDirectory(string levelName) {
-      if (Directory.Exists(GetChunkDataFolder(levelName))) {
+    /// <param name="legalLevelSaveName">The level name, only consisting of legal characters. See: IllegalCharactersForFileName</param>
+    static void CheckForSaveDirectory(string legalLevelSaveName) {
+      if (Directory.Exists(GetChunkDataFolder(legalLevelSaveName))) {
         return;
       }
 
-      Directory.CreateDirectory(GetChunkDataFolder(levelName));
+      Directory.CreateDirectory(GetChunkDataFolder(legalLevelSaveName));
     }
 
     /// <summary>
@@ -205,7 +206,7 @@ namespace Evix.Terrain.DataGeneration {
       /// Load the chunk data from file
       /// </summary>
       public void doWork() {
-        if (GetDataForChunkFromFile(adjustment.chunkID, level.name, out ChunkSaveData chunkData)) {
+        if (GetDataForChunkFromFile(adjustment.chunkID, level.legalFileSaveName, out ChunkSaveData chunkData)) {
           Chunk chunk = level.getChunk(adjustment.chunkID);
           chunk.setVoxelData(chunkData.voxels, chunkData.solidVoxelCount);
           chunk.unlock((adjustment.resolution, adjustment.type));
@@ -240,7 +241,7 @@ namespace Evix.Terrain.DataGeneration {
       /// </summary>
       public void doWork() {
         Chunk chunk = level.getChunk(adjustment.chunkID);
-        SaveChunkDataToFile(adjustment.chunkID, level.name, chunk.clearVoxelData(adjustment));
+        SaveChunkDataToFile(adjustment.chunkID, level.legalFileSaveName, chunk.clearVoxelData(adjustment));
         chunk.unlock((adjustment.resolution, adjustment.type));
       }
     }

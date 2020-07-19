@@ -7,10 +7,6 @@ using System.Collections.Generic;
 
 namespace Evix.Terrain.Collections {
 
-  // TODO: add queue priority to debug info about chunks
-
-  // TODO: change lock type to job/operation type.so opperations can't start of the same resolution on the same chunk until others are finished.
-
   /// <summary>
   /// A chunk of terrain that uses the Coordinate of it's 0,0,0 as an ID in the level
   /// </summary>
@@ -23,8 +19,9 @@ namespace Evix.Terrain.Collections {
     /// <summary>
     /// Levels of how fully loaded a chunk's data can be, and how it's displayed
     /// It's "resolution"
+    /// Count is always the last value to keep count of the #
     /// </summary>
-    public enum Resolution { UnLoaded, Loaded, Meshed, Visible };
+    public enum Resolution { UnLoaded, Loaded, Meshed, Visible, Count};
 
     /// <summary>
     /// The chunk of terrain's diameter in voxels. Used for x y and z
@@ -289,7 +286,6 @@ namespace Evix.Terrain.Collections {
         && adjustment.resolution == Resolution.Loaded
         && adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus)
       ) {
-        // TODO: check if the voxels aren't nulled
 #if DEBUG
         recordEvent($"clearing voxel data");
 #endif
@@ -304,7 +300,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
         recordEvent($"WARNING {id} could not clear voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 # endif
-        World.Debug.logError($"Attempting to clear voxel data on a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to clear voxel data on chunk {id} without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
         return default;
       }
     }
@@ -330,7 +326,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
         recordEvent($"WARNING {(chunkIsDirty ? "Dirty" : "")} chunk {id} could not set mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debug.logError($"Attempting to set a chunk as mehsed on a {(chunkIsDirty ? "Dirty" : "")} chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to set chunk {id} as mehsed on a {(chunkIsDirty ? "Dirty" : "")} chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 
@@ -355,7 +351,7 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
         recordEvent($"WARNING {id} could not clear mesh data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-        World.Debug.logError($"Attempting to remove a chunk mesh from a chunk without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+        World.Debug.logError($"Attempting to remove chunk mesh from chunk {id} without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
       }
     }
 
@@ -394,15 +390,15 @@ namespace Evix.Terrain.Collections {
 #if DEBUG
           recordEvent($"WARNING {id} could not be set invisible, islockeddforwork may not be true, ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
 #endif
-          World.Debug.logError($"Attempting to set a chunk invisible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+          World.Debug.logError($"Attempting to set chunk {id} invisible without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
         }
       }
     }
 
     #endregion
 
-    #region IRecorded Interface
 #if DEBUG
+    #region IRecorded Interface
 
     /// <summary>
     /// A history of events recorded by this chunk
@@ -430,7 +426,7 @@ namespace Evix.Terrain.Collections {
         ? eventHistory.ToArray()
         : eventHistory.GetRange(eventHistory.Count - (int)lastX, (int)lastX).ToArray();
     }
-#endif
     #endregion
+#endif
   }
 }

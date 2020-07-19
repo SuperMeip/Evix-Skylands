@@ -9,6 +9,46 @@ namespace Evix.Terrain.Resolution {
 
     #region ApertureFunctions
 
+    protected override bool isValidAndReady(Adjustment adjustment, Chunk chunk) {
+      /// in focus
+      if (adjustment.type == FocusAdjustmentType.InFocus) {
+        /// can only set meshed chunks visible
+        if (chunk.currentResolution != Chunk.Resolution.Meshed) {
+#if DEBUG
+          if (chunk.currentResolution == Chunk.Resolution.Visible) {
+            chunk.recordEvent($"Chunk invalid for Visible Chunk queue, already at {chunk.currentResolution} resolution");
+          } else {
+            chunk.recordEvent($"Chunk invalid for Visible Chunk job, not at expected resolution: {chunk.currentResolution}; Meshed requied");
+          }
+#endif
+          return false;
+        /// if the chunk is meshed but empty, we can just upgrade it's resolution without notifying the level manager
+        } else if (chunk.meshIsEmpty) {
+          if (chunk.adjustmentLockType == (Chunk.Resolution.Visible, FocusAdjustmentType.InFocus)) {
+#if DEBUG
+          chunk.recordEvent($"Chunk can skip ChunkVisibilityAperture job, chunk has no mesh. Setting as visible");
+#endif
+            chunk.setVisible(true);
+            return false;
+          } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
+        }
+
+        // if the chunk is meshed and not empty, lets try to set it visible
+        return true;
+      /// out of focus
+      } else {
+        if (chunk.currentResolution != Chunk.Resolution.Visible) {
+#if DEBUG
+          chunk.recordEvent($"Chunk invalid for inVisible Chunk queue, currently at {chunk.currentResolution} resolution");
+#endif
+          return false;
+        /// if chunk is visible, we can try to make it un-visible
+        } else {
+          return true;
+        }
+      }
+    }
+
     /// <summary>
     /// Get the right job
     /// </summary>
@@ -22,68 +62,7 @@ namespace Evix.Terrain.Resolution {
         job = new SetChunkInvisibleJob(adjustment);
       }
 
-      return new ApetureJobHandle(job, true);
-    }
-
-    internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
-      // if this is valid up to the meshed level, it's valid so far.
-      if (base.isValid(adjustment, out chunk)) {
-        if (adjustment.type == FocusAdjustmentType.InFocus) {
-          // if it's already visible, we can drop it from the job queue
-          if (chunk.currentResolution == Chunk.Resolution.Visible) {
-#if DEBUG
-            chunk.recordEvent($"Chunk invalid for Visible Chunk queue, already at {chunk.currentResolution} resolution");
-#endif
-            return false;
-          }
-
-          // if the chunk's is loaded and the mesh has been generated, and it's empty then we can just set it as visible
-          if (chunk.currentResolution >= Chunk.Resolution.Meshed && chunk.meshIsEmpty) {
-#if DEBUG
-            chunk.recordEvent($"dropped from ChunkVisibilityAperture, chunk is meshed and mesh is empty");
-#endif
-            if (chunk.currentResolution == Chunk.Resolution.Visible) {
-              return false;
-            } else if (chunk.tryToLock((Chunk.Resolution.Visible, FocusAdjustmentType.InFocus))) {
-              chunk.setVisible(true);
-              chunk.unlock((Chunk.Resolution.Visible, FocusAdjustmentType.InFocus));
-
-              return false;
-            }
-          }
-
-          // if the chunk isn't loaded yet, and we're waiting to mesh it, it's still valid, just not ready.
-          return true;
-        } else {
-          // if it's already out focus enough, we can drop it from the job queue
-          if (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution <= Chunk.Resolution.Meshed) {
-#if DEBUG
-            chunk.recordEvent($"Chunk invalid for inVisible Chunk queue, already at {chunk.currentResolution} resolution");
-#endif
-            return false;
-          }
-
-        // if it's out of focus or dirty, we're fine to go
-          return true;
-        }
-      }
-
-      // if it's not valid for the parent aperture (meshGeneration) then it's not valid for this queue either.
-      return false;
-    }
-
-    protected override bool isReady(Adjustment adjustment, Chunk validatedChunk) {
-      if (adjustment.type == FocusAdjustmentType.InFocus) {
-        if (validatedChunk.currentResolution == Chunk.Resolution.Meshed) {
-          return true;
-        }
-      } else if (adjustment.type == FocusAdjustmentType.OutOfFocus) {
-        if (validatedChunk.currentResolution == Chunk.Resolution.Visible) {
-          return true;
-        }
-      }
-
-      return false;
+      return new ApetureJobHandle(job, onJobComplete, true);
     }
 
     #endregion

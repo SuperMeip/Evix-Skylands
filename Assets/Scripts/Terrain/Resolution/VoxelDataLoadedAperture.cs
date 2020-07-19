@@ -11,25 +11,21 @@ namespace Evix.Terrain.Resolution {
     #region Aperture Functions
 
     /// <summary>
-    /// Make sure it's not already loaded, or unloaded.
+    /// Make sure it's not already loaded how we want. IF it is we can just drop it
     /// </summary>
     /// <param name="adjustment"></param>
     /// <param name="chunk"></param>
     /// <returns></returns>
-    internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
-      if (base.isValid(adjustment, out chunk)) {
-        if ((adjustment.type == FocusAdjustmentType.InFocus && chunk.currentResolution == Chunk.Resolution.UnLoaded)
-          || (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution != Chunk.Resolution.UnLoaded)) {
-          return true;
-        } else {
+    protected override bool isValidAndReady(Adjustment adjustment, Chunk chunk) {
+      if ((adjustment.type == FocusAdjustmentType.InFocus && chunk.currentResolution == Chunk.Resolution.UnLoaded)
+        || (adjustment.type == FocusAdjustmentType.OutOfFocus && chunk.currentResolution != Chunk.Resolution.UnLoaded)) {
+        return true;
+      } else {
 #if DEBUG
-          chunk.recordEvent($"dropped from voxel load queue");
+        chunk.recordEvent($"dropped from voxel load queue, already at requested load level {chunk.currentResolution}");
 #endif
-          return false;
-        }
+        return false;
       }
-
-      return false;
     }
 
     /// <summary>
@@ -56,7 +52,7 @@ namespace Evix.Terrain.Resolution {
         );
       }
 
-      return new ApetureJobHandle(job);
+      return new ApetureJobHandle(job, onJobComplete);
     }
 
     /// <summary>
@@ -84,11 +80,14 @@ namespace Evix.Terrain.Resolution {
               out ApetureJobHandle jobHandle
             )) {
               jobHandle.schedule();
-              lens.storeJobHandle(jobHandle);
+#if DEBUG
+              lens.incrementRunningJobCount(job.adjustment.resolution + 1);
+#endif
             }
           }
         });
       }
+
       base.onJobComplete(job);
     }
   }

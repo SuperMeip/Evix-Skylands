@@ -1,6 +1,7 @@
 using Evix.Events;
 using Evix.Managers;
 using Evix.Terrain.Collections;
+using Evix.Terrain.DataGeneration;
 using Evix.Terrain.Resolution;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,11 @@ namespace Evix {
 		/// The name of the level
 		/// </summary>
 		public string name = "No Man's Land";
+
+		/// <summary>
+		/// The name of the level
+		/// </summary>
+		public readonly string legalFileSaveName;
 
 		/// <summary>
 		/// The collection of chunks
@@ -53,9 +59,11 @@ namespace Evix {
 		/// </summary>
 		/// <param name="chunkBounds"></param>
 		/// <param name="apeturesByPriority"></param>
-		public Level(Coordinate chunkBounds) {
+		public Level(Coordinate chunkBounds, string name = "") {
 			seed = 1234;
-			this.chunkBounds = chunkBounds;
+			this.name = name == "" ? this.name : name;
+			legalFileSaveName = LevelDAO.IllegalCharactersForFileName.Replace(this.name, "");
+ 			this.chunkBounds = chunkBounds;
 		}
 
 		#endregion
@@ -71,11 +79,8 @@ namespace Evix {
 		/// <returns></returns>
 		public byte this[int x, int y, int z] {
 			get {
-				if (chunks.TryGetValue(Chunk.IDFromWorldLocation(x, y, z), out Chunk chunk)) {
-					return chunk[x & 0xF, y & 0xF, z & 0xF];
-				}
-
-				return 0;
+				Chunk chunk = getChunk(Chunk.IDFromWorldLocation(x, y, z));
+				return chunk[x & 0xF, y & 0xF, z & 0xF];
 			}
 
 			set {

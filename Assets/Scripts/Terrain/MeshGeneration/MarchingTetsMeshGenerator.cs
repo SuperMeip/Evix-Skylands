@@ -63,7 +63,6 @@ namespace Evix.Terrain.MeshGeneration {
 			byte[] collectedVoxels = new byte[MarchDiameter * MarchDiameter * MarchDiameter];
 			Coordinate chunkWorldLocation = Chunk.IDToWorldLocation(chunkID);
 			int solidVoxelCount = 0;
-			// TODO: move this data get into some prep step in the Manager Thread.
 			chunkWorldLocation.until(chunkWorldLocation + MarchDiameter, (worldLocation) => {
 				byte voxel = level[worldLocation];
 				if (voxel != Evix.Voxels.Voxel.Types.Empty.Id) {

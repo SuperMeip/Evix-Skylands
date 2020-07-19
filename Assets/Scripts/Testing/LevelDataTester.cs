@@ -7,7 +7,12 @@ using Evix.Managers;
 using Evix.Controllers;
 
 namespace Evix.Testing {
+  
+  /// <summary>
+  /// Test debugger for level and other data
+  /// </summary>
   public class LevelDataTester : MonoBehaviour {
+#if UNITY_EDITOR
     /// <summary>
     /// The test chunk, set by the user
     /// </summary>
@@ -102,4 +107,5 @@ namespace Evix.Testing {
       }
     }
   }
+#endif
 }

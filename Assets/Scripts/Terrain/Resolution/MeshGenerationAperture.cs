@@ -10,46 +10,15 @@ namespace Evix.Terrain.Resolution {
 
     #region ApertureFunctions
 
-    /// <summary>
-    /// Get the job to run
-    /// </summary>
-    /// <param name="adjustment"></param>
-    /// <returns></returns>
-    protected override ApetureJobHandle getJob(Adjustment adjustment) {
-      IAdjustmentJob job;
-      if (adjustment.type == FocusAdjustmentType.InFocus || adjustment.type == FocusAdjustmentType.Dirty) {
-        job = MarchingTetsMeshGenerator.GetJob(adjustment, lens.level);
-      } else {
-        job = new DemeshChunkObjectJob(adjustment, lens.level);
-      }
-
-      return new ApetureJobHandle(job);
-    }
-
-    /// <summary>
-    /// Validate this chunk for meshing/de-meshing
-    /// </summary>
-    /// <param name="adjustment"></param>
-    /// <param name="chunk"></param>
-    /// <returns></returns>
-    internal override bool isValid(Adjustment adjustment, out Chunk chunk) {
-      if (base.isValid(adjustment, out chunk)) {
+    protected override bool isValidAndReady(Adjustment adjustment, Chunk chunk) {
+      switch (adjustment.type) {
         /// for dirty chunks we can just go for it
-        if (adjustment.type == FocusAdjustmentType.Dirty) {
+        case FocusAdjustmentType.Dirty:
           return true;
-        }
-
-        if (adjustment.type == FocusAdjustmentType.InFocus) {
-          // if it's already meshed, we can drop it from the job queue
-          if (chunk.currentResolution >= Chunk.Resolution.Meshed || chunk.currentResolution == Chunk.Resolution.UnLoaded) {
-#if DEBUG
-            chunk.recordEvent($"Chunk invalid for in focus MeshGenerationAperture queue, currently at {chunk.currentResolution} resolution");
-#endif
-            return false;
-          }
-
+        case FocusAdjustmentType.InFocus:
+          /// we can only mesh a newly in focus chunk if it's at the loaded resolution.
           if (chunk.currentResolution == Chunk.Resolution.Loaded) {
-            /// if it's loaded and solid, check if all the chunks that block it are solid. If they are we can ignore this chunk
+            /// if the chunk is solid and all neighbors covering it are also solid, we'll get no mesh, so we can skip it
             if (chunk.isSolid) {
               bool allBlockingNeighborsAreSolid = true;
               MarchingTetsMeshGenerator.ForEachRequiredNeighbor(adjustment.chunkID, lens.level, (neigborID, neighborChunk) => {
@@ -67,18 +36,18 @@ namespace Evix.Terrain.Resolution {
               });
 
               /// set mesh as empty if we don't need to load it
-              if (allBlockingNeighborsAreSolid && chunk.tryToLock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus))) {
+              if (allBlockingNeighborsAreSolid) {
+                if (chunk.adjustmentLockType == (Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus)) {
 #if DEBUG
-                chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, solid chunk is hidden");
+                  chunk.recordEvent($"Chunk can skip MeshGenerationAperture queue, solid chunk is hidden. Setting empty mesh");
 #endif
-                chunk.setMesh(default);
-                chunk.unlock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus));
-
-                return false;
+                  chunk.setMesh(default);
+                  return false;
+                } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
               }
             }
 
-            /// if it's loaded and empty, check if the chunks that require this one for rendering are also empty.
+            /// alternitively if it's loaded and empty, check if the chunks that require this one for rendering are also empty.
             // if they are we can ignore this chunk for meshing
             if (chunk.isEmpty) {
               bool neighborsThatRequireThisChunkAreEmpty = true;
@@ -97,83 +66,63 @@ namespace Evix.Terrain.Resolution {
               });
 
               /// set mesh as empty if we don't need to load it
-              if (neighborsThatRequireThisChunkAreEmpty && chunk.tryToLock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus))) {
+              if (neighborsThatRequireThisChunkAreEmpty) {
+                if (chunk.adjustmentLockType == (Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus)) {
 #if DEBUG
-                chunk.recordEvent($"Chunk invalid for MeshGenerationAperture queue, chunk is empty and has no dependent neighbors");
+                  chunk.recordEvent($"Chunk can skip MeshGenerationAperture queue, chunk is empty and has no dependent neighbors. Setting empty mesh");
 #endif
-                chunk.setMesh(default);
-                chunk.unlock((Chunk.Resolution.Meshed, FocusAdjustmentType.InFocus));
-
-                return false;
+                  chunk.setMesh(default);
+                  return false;
+                } else World.Debug.logAndThrowError<System.AccessViolationException>($"Trying to make a change inside aperture {GetType().Name} with adjustment {adjustment} on chunk {chunk.id} with an incorrect lock: {chunk.adjustmentLockType}");
               }
             }
+
+            /// if the chunk is loaded and passed the solid and empty tests, it's valid
+            return true;
+          } else {
+            /// if the chunk is already meshed we can drop it.
+            if (chunk.currentResolution >= Chunk.Resolution.Meshed) {
+#if DEBUG
+              chunk.recordEvent($"Chunk invalid for in focus MeshGenerationAperture queue, already at {chunk.currentResolution} resolution");
+#endif
+              return false;
+            /// if the chunk isn't loaded yet we can drop it
+            } else { 
+#if DEBUG
+              chunk.recordEvent($"Chunk invalid for in focus MeshGenerationAperture queue, not at Loaded resolution yet.");
+#endif
+              return false;
+            }
+          }
+        case FocusAdjustmentType.OutOfFocus:
+          /// if the resolution is already less than meshed, we can drop it
+          if (chunk.currentResolution < Chunk.Resolution.Meshed) {
+#if DEBUG
+            chunk.recordEvent($"Chunk invalid for out of focus MeshGenerationAperture job, chunk is already below meshed resolution at {chunk.currentResolution}");
+#endif
+            return false;
           }
 
-          /// if the chunk is loaded and passed the solid and empty tests, it's valid
           return true;
-          /// if this chunk is going out of focus and wasn't loaded to meshed level, we can just drop it.  
-        } else if (chunk.currentResolution < Chunk.Resolution.Meshed) {
-#if DEBUG
-          chunk.recordEvent($"Chunk invalid for out of focus MeshGenerationAperture queue, chunk is already below meshed resolution at {chunk.currentResolution}");
-#endif
+        default:
           return false;
-        }
       }
-
-      return true;
     }
 
     /// <summary>
-    /// Check if it's ready to mesh.
+    /// Get the job to run
     /// </summary>
     /// <param name="adjustment"></param>
-    /// <param name="chunk"></param>
     /// <returns></returns>
-    protected override bool isReady(Adjustment adjustment, Chunk validChunk) {
-      /// if a valid chunk is going out of focus or is dirty, it should be ready to go
-      if (adjustment.type == FocusAdjustmentType.Dirty) {
-        return true;
+    protected override ApetureJobHandle getJob(Adjustment adjustment) {
+      IAdjustmentJob job;
+      if (adjustment.type == FocusAdjustmentType.InFocus || adjustment.type == FocusAdjustmentType.Dirty) {
+        job = MarchingTetsMeshGenerator.GetJob(adjustment, lens.level);
+      } else {
+        job = new DemeshChunkObjectJob(adjustment, lens.level);
       }
 
-      /// We can only demesh if it's back at the mesh stage and no longer visisble
-      if (adjustment.type == FocusAdjustmentType.OutOfFocus) {
-        return validChunk.currentResolution == Chunk.Resolution.Meshed;
-      }
-
-      /// if the chunk has it's data loaded, lets check it's nessisary neighbors
-      if (validChunk.currentResolution >= Chunk.Resolution.Loaded) {
-        bool necessaryNeighborsAreLoaded = true;
-        bool blockingNeighborsAreSolid = validChunk.isSolid;
-        MarchingTetsMeshGenerator.ForEachRequiredNeighbor(adjustment.chunkID, lens.level, (neighborID, neighborChunk) => {
-          // check if they're loaded. out of bounds chunks will never be loaded and will always be empty
-          bool neighborIsWithinLevelBounds = neighborID.isWithin(Coordinate.Zero, lens.level.chunkBounds);
-          if (neighborIsWithinLevelBounds && neighborChunk.currentResolution < Chunk.Resolution.Loaded) {
-            necessaryNeighborsAreLoaded = false;
-            if (!blockingNeighborsAreSolid) {
-              return false;
-            }
-          }
-
-          // if this chunk is solid, check if the neighbors are solid
-          if (!neighborIsWithinLevelBounds
-           || (validChunk.isSolid
-            && neighborChunk.currentResolution >= Chunk.Resolution.Loaded
-            && !neighborChunk.isSolid)
-          ) {
-            blockingNeighborsAreSolid = false;
-            if (!necessaryNeighborsAreLoaded) {
-              return false;
-            }
-          }
-
-          return true;
-        });
-
-        // if all the neighbors are loaded, and this and all the neighbors arn't solid, it's ready to go.
-        return necessaryNeighborsAreLoaded && !blockingNeighborsAreSolid;
-      }
-
-      return false;
+      return new ApetureJobHandle(job, onJobComplete);
     }
 
     #endregion
