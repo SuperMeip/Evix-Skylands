@@ -68,6 +68,21 @@ namespace Evix.Terrain {
       } = new Placeholder();
 
       /// <summary>
+      /// Leaf blocks
+      /// </summary>
+      public static Type Leaves {
+        get;
+      } = new Leaves();
+
+      /// <summary>
+      /// Leaf blocks
+      /// TODO: hardwoood vs softwood
+      /// </summary>
+      public static Type Wood {
+        get;
+      } = new Wood();
+
+      /// <summary>
       /// All block types by id
       /// </summary>
       public static Type[] All {
@@ -77,7 +92,9 @@ namespace Evix.Terrain {
         Placeholder,
         Stone,
         Dirt,
-        Grass
+        Grass,
+        Leaves,
+        Wood
       };
 
       /// <summary>
@@ -138,6 +155,26 @@ namespace Evix.Terrain {
     internal Grass() : base(4) {
       Density = 40;
       Color = Color.green;
+    }
+  }
+
+  /// <summary>
+  /// Stone, a solid rock block
+  /// </summary>
+  internal class Leaves : TerrainBlock.Type {
+    internal Leaves() : base(5) {
+      Density = 10;
+      Color = Color.green;
+    }
+  }
+
+  /// <summary>
+  /// Stone, a solid rock block
+  /// </summary>
+  internal class Wood : TerrainBlock.Type {
+    internal Wood() : base(6) {
+      Density = 75;
+      Color = new Color(0.38f, 0.2f, 0.07f);
     }
   }
 }

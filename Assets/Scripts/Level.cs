@@ -216,6 +216,16 @@ namespace Evix {
 			}
 		}
 
+		/// <summary>
+		/// Mark a chunk as in need of update
+		/// </summary>
+		/// <param name="coordinate"></param>
+		public void checkChunkFeatureBuffer(Coordinate chunkID) {
+			foreach (IFocusLens lens in focalLenses.Values) {
+				lens.notifyOf(new ChunkDirtiedEvent(chunkID));
+			}
+		}
+
 		#endregion
 
 		#region Events

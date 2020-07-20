@@ -1,8 +1,10 @@
 ﻿using Evix.Events;
 using Evix.Terrain.DataGeneration;
+using Evix.Terrain.Features;
 using Evix.Terrain.MeshGeneration;
 using Evix.Terrain.Resolution;
 using Evix.Voxels;
+using System;
 using System.Collections.Generic;
 
 namespace Evix.Terrain.Collections {
@@ -101,6 +103,13 @@ namespace Evix.Terrain.Collections {
     /// </summary>
     byte[] voxels = null;
 
+    /// <summary>
+    /// Features this chunk needs to generate when available.
+    /// This is usually for when a neighbor loads a voxel feature, and it extends into an unloaded or locked chunk
+    /// </summary>
+    List<ITerrainFeature> featureBuffer
+      = new List<ITerrainFeature>();
+
     #region Constructors
 
     /// <summary>
@@ -194,6 +203,16 @@ namespace Evix.Terrain.Collections {
     }
 
     /// <summary>
+    /// Shortcut using coordinate for []
+    /// </summary>
+    /// <param name="voxelLocation"></param>
+    /// <returns></returns>
+    public byte this[Coordinate voxelLocation] {
+      get => this[voxelLocation.x, voxelLocation.y, voxelLocation.z];
+      set => this[voxelLocation.x, voxelLocation.y, voxelLocation.z] = value;
+    }
+
+    /// <summary>
     /// Try to lock this chunk for work with this aperture
     /// </summary>
     /// <param name="aperture"></param>
@@ -246,6 +265,54 @@ namespace Evix.Terrain.Collections {
     #endregion
 
     #region Data Manipulation
+
+    /// <summary>
+    /// Try to add a feature to this chunk.
+    /// Adds it to the buffer if not all criteria are met
+    /// TODO: chunk needs to check feature it's own buffer after unlocking at some point
+    /// </summary>
+    public void addFeature(VoxelFeature feature) {
+      // if this is higher than loaded resolution and we can get a lock, just bake it quick now.
+      if (currentResolution >= Resolution.Loaded 
+        && tryToLock((Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty))
+      ) {
+        feature.bake(this);
+        unlock((Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty));
+      } else {
+        featureBuffer.Add(feature);
+      }
+    }
+
+    /// <summary>
+    /// Do something for each buffered feature and then clear them.
+    /// This will lock the feature buffer
+    /// </summary>
+    /// <param name="p"></param>
+    public void bakeBufferedVoxelFeatures(bool clearFeatureBuffer = true) {
+      /// can only bake features via an in focus dirty or load lock
+      if (isLockedForWork 
+        && (adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty)
+          || (adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.InFocus))
+          // also allow it if we're checking for stragglers before meshing the chunk
+          || (adjustmentLockType == (Resolution.Meshed, ChunkResolutionAperture.FocusAdjustmentType.InFocus) 
+            && currentResolution == Resolution.Loaded))
+      ) {
+        lock (featureBuffer) {
+          foreach (ITerrainFeature terrainFeature in featureBuffer) {
+            if (terrainFeature is VoxelFeature voxelFeature) {
+              voxelFeature.bake(this);
+            }
+          }
+
+          featureBuffer = clearFeatureBuffer ? new List<ITerrainFeature>() : featureBuffer;
+        }
+      } else {
+#if DEBUG
+        recordEvent($"WARNING {id} could not bake feature voxel data, islockeddforwork may not be true ( {isLockedForWork} ) or it may have an incorrect aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+#endif
+        World.Debug.logError($"Attempting bake feature voxel data on chunk {id} without the correct aperture lock: {adjustmentLockType}, or resolution level: {currentResolution}");
+      }
+    }
 
     /// <summary>
     /// Set this chunk's voxel data.

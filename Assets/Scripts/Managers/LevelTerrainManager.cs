@@ -401,32 +401,51 @@ namespace Evix.Managers {
     }
 
     #endregion
-  }
 
 #if UNITY_EDITOR
-  #region Unity Custom Inspector
-  [CustomEditor(typeof(LevelTerrainManager))]
-  public class LevelDataTesterGUI : Editor {
-    public override void OnInspectorGUI() {
-      DrawDefaultInspector();
+    #region Unity Custom Inspector
+    [CustomEditor(typeof(LevelTerrainManager))]
+    public class LevelDataTesterGUI : Editor {
+      public override void OnInspectorGUI() {
+        DrawDefaultInspector();
 
-      EditorGUI.BeginDisabledGroup(true);
-      EditorGUILayout.LabelField("Lens Info:", "-----");
-      LevelTerrainManager terrainManager = target as LevelTerrainManager;
-      if (terrainManager.level != null) {
-        terrainManager.level.forEachFocalLens((lens, focus) => {
-          EditorGUILayout.Space();
-          EditorGUILayout.LabelField("Lens:", $"{lens.GetType().Name} focused on #{focus.id}");
-          EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
-          EditorGUILayout.LabelField("Running Jobs Per Aperture:");
-          foreach ((int runningJobCount, string apertureName) in lens.getRunningJobCountPerAperture()) {
-            EditorGUILayout.IntField(apertureName, runningJobCount);
-          }
-        });
+        LevelTerrainManager terrainManager = target as LevelTerrainManager;
+        EditorGUILayout.LabelField("Lens Info:", EditorStyles.boldLabel);
+        EditorGUI.BeginDisabledGroup(true);
+        if (terrainManager.level != null) {
+          terrainManager.level.forEachFocalLens((lens, focus) => {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Lens:", $"{lens.GetType().Name} focused on #{focus.id}");
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            EditorGUILayout.LabelField("Running Jobs Per Aperture:");
+            foreach ((int runningJobCount, string apertureName) in lens.getRunningJobCountPerAperture()) {
+              EditorGUILayout.IntField(apertureName, runningJobCount);
+            }
+          });
+        }
+        EditorGUI.EndDisabledGroup();
+
+        EditorGUILayout.LabelField("Manager Info:", EditorStyles.boldLabel);
+        if (GUILayout.Button("Print Current Queue Counts")) {
+          PrintQueueCounts(terrainManager);
+        }
       }
 
+      /// <summary>
+      /// Print the queue counts for a terrain manager
+      /// </summary>
+      /// <param name="terrainManager"></param>
+      public static void PrintQueueCounts(LevelTerrainManager terrainManager) {
+        World.Debug.log($"Current Queue Counts:\n ===== \n"
+          + $"\tChunks Waiting For A Free Controller: {terrainManager.chunksWaitingForAFreeController.Count}"
+          + $"\tChunks To Mesh: {terrainManager.chunksToMesh.Count}"
+          + $"\tChunks To Activate: {terrainManager.chunksToActivate.Count}"
+          + $"\tChunks To Deactivate: {terrainManager.chunksToDeactivate.Count}"
+          + $"\tChunks To Demesh: {terrainManager.chunksToDemesh.Count}"
+        );
+      }
     }
-  }
-  #endregion
+    #endregion
 #endif
+  }
 }

@@ -85,6 +85,14 @@ namespace Evix {
     }
 
     /// <summary>
+    /// Turn an int into a coordinate.
+    /// </summary>
+    /// <param name="coordinates"></param>
+    public static implicit operator Coordinate(int XYZ) {
+      return new Coordinate(XYZ);
+    }
+
+    /// <summary>
     /// Make a coordinate into a vector 3
     /// </summary>
     /// <param name="coordinate"></param>
@@ -364,12 +372,34 @@ namespace Evix {
     }
 
     /// <summary>
+    /// Flatten the values using the coordinate flatten formula
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="z"></param>
+    /// <param name="height">The height of the flattened array</param>
+    /// <param name="depth"></param>
+    /// <returns></returns>
+    public static int Flatten(int x, int y, int z, int height, int depth) {
+      return x * height * depth + y * depth + z;
+    }
+
+    /// <summary>
     /// Flatten to an index for a 1D array of the given diameter
     /// </summary>
     /// <param name="diameter"></param>
     /// <returns></returns>
     public int flatten(int diameter) {
       return Flatten(x, y, z, diameter);
+    }
+
+    /// <summary>
+    /// Flatten to an index for a 1D array of the given diameter
+    /// </summary>
+    /// <param name="diameter"></param>
+    /// <returns></returns>
+    public int flatten(int height, int depth) {
+      return Flatten(x, y, z, height, depth);
     }
 
     /// <summary>

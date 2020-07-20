@@ -1,19 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace Evix.Terrain.Features {
 
-namespace Evix.Terrain.Features {
-  public abstract class GeneratedVoxelFeature : ITerrainFeature {
-
-    /// <summary>
-    /// The base world voxel location of this feature
-    /// Where it's root is in the world
-    /// </summary>
-    public Coordinate worldRoot {
-      get;
-    }
+  /// <summary>
+  /// A generated voxel terrain feature
+  /// </summary>
+  public abstract class GeneratedVoxelFeature : VoxelFeature {
 
     /// <summary>
     /// The base seed used to generate this feature
@@ -21,17 +11,11 @@ namespace Evix.Terrain.Features {
     protected readonly int seed;
 
     /// <summary>
-    /// The voxels this stores the generated feature in
-    /// </summary>
-    protected byte[] voxels;
-
-    /// <summary>
     /// Make a new generated feature
     /// </summary>
     /// <param name="root"></param>
     /// <param name="seed"></param>
-    public GeneratedVoxelFeature(Coordinate root, int seed) {
-      worldRoot = root;
+    public GeneratedVoxelFeature(Coordinate root, Coordinate parentChunkID, int seed) : base(root, parentChunkID) {
       this.seed = seed;
       generate();
     }

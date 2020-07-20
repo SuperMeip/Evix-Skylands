@@ -1,11 +1,22 @@
 ﻿namespace Evix.Terrain.Features {
+
+  /// <summary>
+  /// A feature of the terrain
+  /// </summary>
   public interface ITerrainFeature {
 
     /// <summary>
-    /// The base world voxel location of this feature
-    /// Where it's root is in the world
+    /// The location of the parent chunk containing the root of this feature
     /// </summary>
-    Coordinate worldRoot {
+    Coordinate parentChunkID {
+      get;
+    }
+
+    /// <summary>
+    /// The base chunk local voxel location of this feature
+    /// Where it's root is in the world on a chunk
+    /// </summary>
+    Coordinate chunkRoot {
       get;
     }
   }
