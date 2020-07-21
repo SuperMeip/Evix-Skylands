@@ -1,6 +1,6 @@
 ﻿using Evix.Terrain.Collections;
 using Evix.Terrain.Resolution;
-using System;
+using System.Collections.Generic;
 
 namespace Evix.Terrain.Features {
 
@@ -17,13 +17,6 @@ namespace Evix.Terrain.Features {
     }
 
     /// <summary>
-    /// The parent chunk id, the id of the chunk with this feature's root in it.
-    /// </summary>
-    public Coordinate parentChunkID {
-      get;
-    }
-
-    /// <summary>
     /// The bounds of this object in voxels, width, height, and depth
     /// </summary>
     public Coordinate bounds {
@@ -34,33 +27,31 @@ namespace Evix.Terrain.Features {
     /// <summary>
     /// The voxels this stores the generated feature in
     /// </summary>
-    protected byte[] voxels;
+    protected Dictionary<Coordinate, byte> voxels;
 
     /// <summary>
     /// The local location in the voxel array that corresponds to the XYZ of the world root of this feature
     /// </summary>
-    protected Coordinate localRoot;
+    protected Coordinate localRoot
+      = Coordinate.Zero;
 
     /// <summary>
     /// Make a new voxel feature. base constructor
     /// </summary>
     /// <param name="root"></param>
-    protected VoxelFeature(Coordinate root, Coordinate parentChunkID) {
+    protected VoxelFeature(Coordinate root) {
       chunkRoot = root;
-      this.parentChunkID = parentChunkID;
     }
 
     /// <summary>
-    /// bake this feature into a chunk
+    /// bake this feature into a chunk,
+    /// Returns fragments of the feature that need to be baked into other chunks
     /// </summary>
     /// <param name="chunk"></param>
-    public void bake(Chunk chunk) {
-      /// if this isn't the chunk this feature started in, get the offset
-      Coordinate parentChunkLocationOffset = Coordinate.Zero;
-      if (parentChunkID != chunk.id) {
-        // TODO: make sure the offset is subtracted in the right directon
-        parentChunkLocationOffset = (chunk.id - parentChunkID) * Chunk.Diameter;
-      }
+    /// <returns>A list of spillover fragments with the chunk they should be baked into</returns>
+    public virtual List<(Coordinate chunkID, Fragment voxelFeatureFragment)> bake(Chunk chunk) {
+      Dictionary<Coordinate, Dictionary<Coordinate, byte>> fragmentFeatureDataBySpilloverChunkID
+        = new Dictionary<Coordinate, Dictionary<Coordinate, byte>>();
 
       /// Get the read point to start at, relative to the feature's local root (if the local root was 0,0,0)
       Coordinate featureStartBuffer = Coordinate.Zero - localRoot;
@@ -70,7 +61,7 @@ namespace Evix.Terrain.Features {
 
       /// since the feature's root is now effectively 0,0,0 given our featureStartBuffer, featureEndPoint bounds,
       // what do we need to add to a point to get the chunk location?
-      Coordinate chunkFeatureLocationDelta = parentChunkLocationOffset + chunkRoot;
+      Coordinate chunkFeatureLocationDelta = chunkRoot;
 
       // get the location in the chunk where the feature's overlap starts. 
       Coordinate chunkOverlapStart = chunkFeatureLocationDelta + featureStartBuffer;
@@ -81,10 +72,68 @@ namespace Evix.Terrain.Features {
       // itterate between them
       chunkOverlapStart.until(chunkOverlapEnd, chunkVoxelLocation => {
         // if the voxel from the feature at this associated location is within this chunk, add it to this chunk
+        byte localFeatureVoxel = voxels[(chunkVoxelLocation - chunkFeatureLocationDelta).flatten(bounds.y, bounds.z)];
         if (chunkVoxelLocation.isWithin(Coordinate.Zero, Chunk.Diameter)) {
-          chunk[chunkVoxelLocation] = voxels[(chunkVoxelLocation - chunkFeatureLocationDelta).flatten(bounds.y, bounds.z)];
+          chunk[chunkVoxelLocation] = localFeatureVoxel;
+        } else {
+          // if the coordinate is out of this chunks bounds, add the chunk it spills over to
+          //    to the return
+          Coordinate spilloverChunkID = chunk.id;
+          if (chunkVoxelLocation.x >= Chunk.Diameter) {
+            spilloverChunkID.x += 1;
+          } else if (chunkVoxelLocation.x < 0) {
+            spilloverChunkID.x -= 1;
+          }
+          if (chunkVoxelLocation.y >= Chunk.Diameter) {
+            spilloverChunkID.y += 1;
+          } else if (chunkVoxelLocation.y < 0) {
+            spilloverChunkID.y -= 1;
+          }
+          if (chunkVoxelLocation.z >= Chunk.Diameter) {
+            spilloverChunkID.z += 1;
+          } else if (chunkVoxelLocation.z < 0) {
+            spilloverChunkID.z -= 1;
+          }
+
+          /// for each block that's spilled over, add it to the parent chunk's array.
+          if (spilloverChunkID != chunk.id) {
+            if (!fragmentFeatureDataBySpilloverChunkID.ContainsKey(spilloverChunkID)) {
+              fragmentFeatureDataBySpilloverChunkID[spilloverChunkID] = new Dictionary<Coordinate, byte>();
+            }
+           fragmentFeatureDataBySpilloverChunkID[spilloverChunkID][chunkVoxelLocation - (spilloverChunkID - chunk.id) * Chunk.Diameter] = localFeatureVoxel;
+          }
         }
       });
+
+      // build fragments from the collected extra data.
+      List<(Coordinate, Fragment)> fragments = new List<(Coordinate, Fragment)>();
+      foreach(KeyValuePair<Coordinate, Dictionary<Coordinate, byte>> fragmentData in fragmentFeatureDataBySpilloverChunkID) {
+        fragments.Add((fragmentData.Key, new Fragment(fragmentData.Value)));
+      }
+
+      return fragments;
+    }
+
+    /// <summary>
+    /// Make a new fragment with the given data
+    /// </summary>
+    public class Fragment : VoxelFeature {
+      public Fragment(Dictionary<Coordinate, byte> localChunkBlocks) : base((0,0,0)) {
+        voxels = localChunkBlocks;
+      }
+
+      /// <summary>
+      /// Only bake a fragment into the chunk it's given to
+      /// </summary>
+      /// <param name="chunk"></param>
+      /// <returns></returns>
+      public override List<(Coordinate chunkID, Fragment voxelFeatureFragment)> bake(Chunk chunk) {
+        foreach(KeyValuePair<Coordinate, byte> voxelData in voxels) {
+          chunk[voxelData.Key] = voxelData.Value;
+        }
+
+        return new List<(Coordinate chunkID, Fragment voxelFeatureFragment)>();
+      }
     }
 
     /// <summary>
@@ -116,7 +165,7 @@ namespace Evix.Terrain.Features {
 
       public void doWork() {
         Chunk chunk = level.getChunk(adjustment.chunkID);
-        chunk.bakeBufferedVoxelFeatures();
+        chunk.bakeBufferedVoxelFeatures(level);
         chunk.unlock((Chunk.Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty));
       }
     }

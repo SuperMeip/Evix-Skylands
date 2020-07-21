@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using Evix.Terrain.DataGeneration.Stars;
+using Evix.Sky.Stars;
 
 namespace Evix.Controllers {
 

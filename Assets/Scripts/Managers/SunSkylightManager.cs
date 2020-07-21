@@ -1,7 +1,5 @@
 ﻿using Evix.Controllers;
-using Evix.Terrain.DataGeneration.Stars;
-using System.Collections;
-using System.Collections.Generic;
+using Evix.Sky.Stars;
 using UnityEngine;
 
 namespace Evix.Managers {

@@ -62,7 +62,7 @@ namespace Evix.Terrain.MeshGeneration {
 		static int GetVoxelsToMarchOver(Coordinate chunkID, Level level, out byte[] voxels) {
 			// first bake any remaining voxel features into the chunk data
 			Chunk chunk = level.getChunk(chunkID);
-			chunk.bakeBufferedVoxelFeatures();
+			chunk.bakeBufferedVoxelFeatures(level);
 
 			byte[] collectedVoxels = new byte[MarchDiameter * MarchDiameter * MarchDiameter];
 			Coordinate chunkWorldLocation = Chunk.IDToWorldLocation(chunkID);

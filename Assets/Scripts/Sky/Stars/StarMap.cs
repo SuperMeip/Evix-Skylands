@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Evix.Terrain.DataGeneration.Stars {
+namespace Evix.Sky.Stars {
   public class StarMap {
 
     /// <summary>

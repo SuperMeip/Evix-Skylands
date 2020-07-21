@@ -6,13 +6,6 @@
   public interface ITerrainFeature {
 
     /// <summary>
-    /// The location of the parent chunk containing the root of this feature
-    /// </summary>
-    Coordinate parentChunkID {
-      get;
-    }
-
-    /// <summary>
     /// The base chunk local voxel location of this feature
     /// Where it's root is in the world on a chunk
     /// </summary>

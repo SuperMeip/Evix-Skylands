@@ -287,8 +287,7 @@ namespace Evix.Terrain.Collections {
     /// Do something for each buffered feature and then clear them.
     /// This will lock the feature buffer
     /// </summary>
-    /// <param name="p"></param>
-    public void bakeBufferedVoxelFeatures(bool clearFeatureBuffer = true) {
+    public void bakeBufferedVoxelFeatures(Level level, bool clearFeatureBuffer = true) {
       /// can only bake features via an in focus dirty or load lock
       if (isLockedForWork 
         && (adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty)
@@ -298,12 +297,17 @@ namespace Evix.Terrain.Collections {
             && currentResolution == Resolution.Loaded))
       ) {
         lock (featureBuffer) {
+          /// bake all features in
           foreach (ITerrainFeature terrainFeature in featureBuffer) {
             if (terrainFeature is VoxelFeature voxelFeature) {
-              voxelFeature.bake(this);
+              // if any of the features produce spillover fragments, try to add them to the chunks they belong to.
+              foreach((Coordinate chunkID, VoxelFeature.Fragment fragment) in voxelFeature.bake(this)) {
+                level.getChunk(chunkID).addFeature(fragment);
+              }
             }
           }
 
+          /// clear the buffer (?)
           featureBuffer = clearFeatureBuffer ? new List<ITerrainFeature>() : featureBuffer;
         }
       } else {
