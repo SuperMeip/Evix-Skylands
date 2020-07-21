@@ -17,14 +17,6 @@ namespace Evix.Terrain.Features {
     }
 
     /// <summary>
-    /// The bounds of this object in voxels, width, height, and depth
-    /// </summary>
-    public Coordinate bounds {
-      get;
-      protected set;
-    }
-
-    /// <summary>
     /// The voxels this stores the generated feature in
     /// </summary>
     protected Dictionary<Coordinate, byte> voxels;
@@ -53,61 +45,46 @@ namespace Evix.Terrain.Features {
       Dictionary<Coordinate, Dictionary<Coordinate, byte>> fragmentFeatureDataBySpilloverChunkID
         = new Dictionary<Coordinate, Dictionary<Coordinate, byte>>();
 
-      /// Get the read point to start at, relative to the feature's local root (if the local root was 0,0,0)
-      Coordinate featureStartBuffer = Coordinate.Zero - localRoot;
-
-      // get the point to end voxel read at if the local root was at 0,0,0.
-      Coordinate featureEndPoint = featureStartBuffer + bounds;
-
-      /// since the feature's root is now effectively 0,0,0 given our featureStartBuffer, featureEndPoint bounds,
-      // what do we need to add to a point to get the chunk location?
-      Coordinate chunkFeatureLocationDelta = chunkRoot;
-
-      // get the location in the chunk where the feature's overlap starts. 
-      Coordinate chunkOverlapStart = chunkFeatureLocationDelta + featureStartBuffer;
-
-      // get the location in the chunk where the feature overlap ends
-      Coordinate chunkOverlapEnd = chunkFeatureLocationDelta + featureEndPoint;
-
-      // itterate between them
-      chunkOverlapStart.until(chunkOverlapEnd, chunkVoxelLocation => {
-        // if the voxel from the feature at this associated location is within this chunk, add it to this chunk
-        byte localFeatureVoxel = voxels[(chunkVoxelLocation - chunkFeatureLocationDelta).flatten(bounds.y, bounds.z)];
-        if (chunkVoxelLocation.isWithin(Coordinate.Zero, Chunk.Diameter)) {
-          chunk[chunkVoxelLocation] = localFeatureVoxel;
+      foreach (KeyValuePair<Coordinate, byte> featureLocalVoxelData in voxels) {
+        /// for each feature voxel within the chunk bounds, bake it in.
+        Coordinate chunkLocalVoxelLocation = chunkRoot + featureLocalVoxelData.Key;
+        if (chunkLocalVoxelLocation.isWithin(Coordinate.Zero, Chunk.Diameter)) {
+          chunk[chunkLocalVoxelLocation] = featureLocalVoxelData.Value;
         } else {
-          // if the coordinate is out of this chunks bounds, add the chunk it spills over to
-          //    to the return
+          /// if the coordinate is out of this chunks bounds, add it to a list for the chunk it spills over to
           Coordinate spilloverChunkID = chunk.id;
-          if (chunkVoxelLocation.x >= Chunk.Diameter) {
+          // get the id of the chunk we've spilled over into
+          if (chunkLocalVoxelLocation.x >= Chunk.Diameter) {
             spilloverChunkID.x += 1;
-          } else if (chunkVoxelLocation.x < 0) {
+          } else if (chunkLocalVoxelLocation.x < 0) {
             spilloverChunkID.x -= 1;
           }
-          if (chunkVoxelLocation.y >= Chunk.Diameter) {
+          if (chunkLocalVoxelLocation.y >= Chunk.Diameter) {
             spilloverChunkID.y += 1;
-          } else if (chunkVoxelLocation.y < 0) {
+          } else if (chunkLocalVoxelLocation.y < 0) {
             spilloverChunkID.y -= 1;
           }
-          if (chunkVoxelLocation.z >= Chunk.Diameter) {
+          if (chunkLocalVoxelLocation.z >= Chunk.Diameter) {
             spilloverChunkID.z += 1;
-          } else if (chunkVoxelLocation.z < 0) {
+          } else if (chunkLocalVoxelLocation.z < 0) {
             spilloverChunkID.z -= 1;
           }
 
-          /// for each block that's spilled over, add it to the parent chunk's array.
+          // add the block to the spillover chunk's array.
           if (spilloverChunkID != chunk.id) {
             if (!fragmentFeatureDataBySpilloverChunkID.ContainsKey(spilloverChunkID)) {
               fragmentFeatureDataBySpilloverChunkID[spilloverChunkID] = new Dictionary<Coordinate, byte>();
             }
-           fragmentFeatureDataBySpilloverChunkID[spilloverChunkID][chunkVoxelLocation - (spilloverChunkID - chunk.id) * Chunk.Diameter] = localFeatureVoxel;
+            // we need to calculate the location to put the block in the spillover chunk
+            fragmentFeatureDataBySpilloverChunkID[spilloverChunkID][chunkLocalVoxelLocation - (spilloverChunkID - chunk.id) * Chunk.Diameter] 
+              = featureLocalVoxelData.Value;
           }
         }
-      });
+      }
 
       // build fragments from the collected extra data.
       List<(Coordinate, Fragment)> fragments = new List<(Coordinate, Fragment)>();
-      foreach(KeyValuePair<Coordinate, Dictionary<Coordinate, byte>> fragmentData in fragmentFeatureDataBySpilloverChunkID) {
+      foreach (KeyValuePair<Coordinate, Dictionary<Coordinate, byte>> fragmentData in fragmentFeatureDataBySpilloverChunkID) {
         fragments.Add((fragmentData.Key, new Fragment(fragmentData.Value)));
       }
 

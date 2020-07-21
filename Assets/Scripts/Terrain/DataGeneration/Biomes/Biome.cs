@@ -1,21 +1,28 @@
 ﻿using Evix.Terrain.Features;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Evix.Terrain.DataGeneration.Biomes {
-  public class Biome  {
+  public abstract class Biome {
 
+    /// <summary>
+    /// The potential features this biome can generate
+    /// </summary>
     protected readonly ITerrainFeature[] potentialFeatures;
     
+    /// <summary>
+    /// Make a new biome with the given potential features
+    /// </summary>
+    /// <param name="potentialFeatures"></param>
     protected Biome(ITerrainFeature[] potentialFeatures) {
       this.potentialFeatures = potentialFeatures;
     }
 
-    public byte generate(Coordinate worldLocation) {
-
-    }
+    /// <summary>
+    /// Generate a voxel byte at the given location.
+    /// May also return a feature
+    /// </summary>
+    /// <param name="worldLocation"></param>
+    /// <param name="feature"></param>
+    /// <returns></returns>
+    public abstract byte generate(Coordinate worldLocation, out ITerrainFeature feature);
   }
 }
