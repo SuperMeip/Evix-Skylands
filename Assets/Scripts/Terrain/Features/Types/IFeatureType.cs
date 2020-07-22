@@ -16,6 +16,6 @@ namespace Evix.Terrain.Features {
     /// </summary>
     /// <param name="root"></param>
     /// <returns></returns>
-    ITerrainFeature getInstance(Coordinate root);
+    ITerrainFeature make(Coordinate root);
   }
 }

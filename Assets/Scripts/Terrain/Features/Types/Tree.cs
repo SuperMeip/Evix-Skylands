@@ -20,7 +20,7 @@ namespace Evix.Terrain.Features {
       this.seed = seed;
     }
 
-    public override ITerrainFeature getInstance(Coordinate root) {
+    public override ITerrainFeature make(Coordinate root) {
       return new BasicTreeFeature(root, seed);
     }
   }

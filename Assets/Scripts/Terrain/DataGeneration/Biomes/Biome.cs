@@ -36,6 +36,6 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     /// <param name="worldLocation"></param>
     /// <param name="feature"></param>
     /// <returns></returns>
-    public abstract byte generate(Coordinate worldLocation, Coordinate chunkID, out ITerrainFeature feature);
+    public abstract byte generateAt(Coordinate worldLocation, Coordinate chunkID, out ITerrainFeature feature);
   }
 }

@@ -31,12 +31,12 @@ namespace Evix.Terrain.DataGeneration.Biomes {
       }
     ) { }
 
-    public override byte generate(Coordinate worldLocation, Coordinate chunkID, out ITerrainFeature feature) {
+    public override byte generateAt(Coordinate worldLocation, Coordinate chunkID, out ITerrainFeature feature) {
       feature = null;
       int surfaceHeightForXZ = seaLevel + (int)noise.GetPerlin(worldLocation.x, worldLocation.z).scale(maxHillHeightVariance, -maxValleyDephVarriance);
       if (worldLocation.y == surfaceHeightForXZ) {
         if (worldLocation.x + worldLocation.y % 12 == 0) {
-          feature = potentialFeatures[0].getInstance(worldLocation - (chunkID * Chunk.Diameter));
+          feature = potentialFeatures[0].make(worldLocation - (chunkID * Chunk.Diameter));
         }
         return TerrainBlock.Types.Grass.Id;
       } else if (worldLocation.y < surfaceHeightForXZ) {

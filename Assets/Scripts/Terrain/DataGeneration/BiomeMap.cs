@@ -1,11 +1,14 @@
-﻿using Evix.Terrain.DataGeneration.Sources.Noise;
+﻿using Evix.Terrain.Collections;
+using Evix.Terrain.DataGeneration.Biomes;
+using Evix.Terrain.DataGeneration.Sources.Noise;
+using System.Collections.Generic;
 
 namespace Evix.Terrain.DataGeneration {
 
   /// <summary>
   /// A map used to get biome data for chunks in a level.
   /// </summary>
-  public class BiomeMap {
+  public abstract class BiomeMap {
 
     /// <summary>
     /// The max height allowed on the heightmap above sea level.
@@ -21,50 +24,75 @@ namespace Evix.Terrain.DataGeneration {
     /// The seed this biome map uses.
     /// From the level
     /// </summary>
-    readonly int seed;
+    protected readonly int seed;
+
+    /// <summary>
+    /// The types of biomes this BiomeMap can produce/contain
+    /// </summary>
+    protected readonly IBiomeType[] biomeTypes;
+
+    /// <summary>
+    /// The center points of biomes, dinoted by the center points of Voronoi polygons in our map
+    /// TODO: Make this a quadtree as well for itteration searches during block gen
+    /// </summary>
+    protected readonly Dictionary<Coordinate, Biome> biomeVoronoiCenters;
 
     /// <summary>
     /// The noise generator used for this voxel source
     /// </summary>
     protected readonly FastNoise noise;
 
-    public BiomeMap(int seed) {
+    protected BiomeMap(int seed, IBiomeType[] biomeTypes) {
       this.seed = seed;
+      this.biomeTypes = biomeTypes;
       noise = new FastNoise(seed);
     }
 
     /// <summary>
-    /// Gets the 4 height values for the corners of the given chunk.
-    /// Ordered starting with South West (-,-) and going clockwise
+    /// The formula to get a biome given the height temp and humidity of the 2D biome map.
+    /// This should also check neighboring biomes to see if we are simply extending one or need to make a new one.
     /// </summary>
-    /// <param name="chunkID"></param>
+    /// <param name="biomeVoronoiCenter"></param>
+    /// <param name="surfaceHeight"></param>
+    /// <param name="temperature"></param>
+    /// <param name="humidity"></param>
     /// <returns></returns>
-    float[] getChunkCornerHeights(Coordinate chunkID) {
-      float[] cornerHeightsClockwiseFromSouthWest = new float[4];
-      /// south west (current chunkID)
-      Coordinate currentChunkLocation = chunkID;
-      cornerHeightsClockwiseFromSouthWest[Corners.SouthWest.Value] = getHeightmapValue(currentChunkLocation);
-      /// north west
-      currentChunkLocation += Directions.North.Offset;
-      cornerHeightsClockwiseFromSouthWest[Corners.NorthWest.Value] = getHeightmapValue(currentChunkLocation);
-      /// north east
-      currentChunkLocation += Directions.East.Offset;
-      cornerHeightsClockwiseFromSouthWest[Corners.NorthEast.Value] = getHeightmapValue(currentChunkLocation);
-      // south east
-      currentChunkLocation += Directions.South.Offset;
-      cornerHeightsClockwiseFromSouthWest[Corners.SouthEast.Value] = getHeightmapValue(currentChunkLocation);
+    protected abstract Biome getBiomeForValues(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
 
-      return cornerHeightsClockwiseFromSouthWest;
+    /// <summary>
+    /// Get the temperature map value for the given world location (2D)
+    /// </summary>
+    /// <param name="worldLocation"></param>
+    /// <returns></returns>
+    protected virtual float getTemperatureMapValue(Coordinate worldLocation) {
+      // TODO: vector3cross of the axis of rotation of the sun and vec3.up should get this.
+      return 0;
     }
 
     /// <summary>
-    /// The heightmap is based on a grid of points made at the corners where chunks meet.
+    /// Get the moisture map value for the given world location (2D)
     /// </summary>
-    /// <param name="chunkCornerLocation"></param>
+    /// <param name="worldLocation"></param>
     /// <returns></returns>
-    float getHeightmapValue(Coordinate chunkCornerLocation) {
-      return noise.GetPerlin(chunkCornerLocation.x, chunkCornerLocation.z)
-        .scale(maxHeightAboveSeaLevel, -maxDepthBelowSeaLevel);
+    protected virtual float getMoistureMapValue(Coordinate worldLocation) {
+      return 0;
+    }
+
+    /// <summary>
+    /// Get the actual height of the surface, in blocks, of the given area on the map (2D)
+    /// </summary>
+    /// <param name="worldLocation"></param>
+    /// <returns></returns>
+    protected virtual int getSurfaceHeight(Coordinate worldLocation) {
+      return (int)getHeightMapValue(worldLocation)
+        .scale(World.SeaLevel + maxHeightAboveSeaLevel, World.SeaLevel - maxDepthBelowSeaLevel);
+    }
+
+    /// <summary>
+    /// Get the hight map value for the given world location (2D)
+    /// </summary>
+    protected virtual float getHeightMapValue(Coordinate worldLocation) {
+      return (int)noise.GetPerlin(worldLocation.x, worldLocation.z);
     }
   }
 }

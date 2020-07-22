@@ -12,6 +12,6 @@ namespace Evix.Terrain.Features {
   public abstract class FeatureType : IFeatureType {
     protected FeatureType() {}
 
-    public abstract ITerrainFeature getInstance(Coordinate root);
+    public abstract ITerrainFeature make(Coordinate root);
   }
 }
