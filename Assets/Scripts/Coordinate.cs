@@ -640,7 +640,7 @@ namespace Evix {
       /// <summary>
       /// The x y z offset of this direction from the origin
       /// </summary>
-      public Coordinate Offset {
+      public virtual Coordinate Offset {
         get => Offsets[Value];
       }
 
@@ -788,13 +788,73 @@ namespace Evix {
     /// <summary>
     /// The coordinate directional offsets
     /// </summary>
-    public static Coordinate[] Offsets = new Coordinate[6] {
+    static Coordinate[] Offsets = new Coordinate[6] {
       (0,0,1),
       (1,0,0),
       (0,0,-1),
       (-1, 0, 0),
       (0, 1, 0),
       (0, -1, 0)
+    };
+  }
+
+  #endregion
+
+  #region 2D Corner Constants
+
+  /// <summary>
+  /// 2D corner values and offsets
+  /// </summary>
+  public static class Corners {
+
+    /// <summary>
+    /// Sub class for replacing offsets
+    /// </summary>
+    public class Corner : Directions.Direction {
+      public override Coordinate Offset {
+        get => Offsets[Value];
+      }
+      internal Corner(int value, string name) : base(value, name) { }
+    }
+
+    /// <summary>
+    /// X-Z-
+    /// </summary>
+    public static Corner SouthWest = new Corner(0, "SouthWest");
+
+    /// <summary>
+    /// X+Z-
+    /// </summary>
+    public static Corner NorthWest = new Corner(1, "NorthWest");
+
+    /// <summary>
+    /// X+Z+
+    /// </summary>
+    public static Corner NorthEast = new Corner(2, "NorthEast");
+
+    /// <summary>
+    /// X-Z+
+    /// </summary>
+    public static Corner SouthEast = new Corner(3, "SouthEast");
+
+    /// <summary>
+    /// All of the 2D corner directions
+    /// </summary>
+    public static Corner[] All2D = new Corner[] {
+      SouthWest,
+      NorthWest,
+      NorthEast,
+      SouthEast
+    };
+
+    /// <summary>
+    /// The offsets for each 2D corner
+    /// </summary>
+    public static Coordinate[] Offsets = new Coordinate[] {
+      Directions.South.Offset + Directions.West.Offset,
+      Directions.North.Offset + Directions.West.Offset,
+      Directions.North.Offset + Directions.East.Offset,
+      Directions.South.Offset + Directions.East.Offset
     };
   }
 

@@ -40,7 +40,7 @@ namespace Evix.Terrain.Resolution {
           job = new LevelDAO.LoadChunkDataFromFileJob(adjustment, lens.level);
           // if there's no file, we need to generate the chunk data from scratch
         } else {
-          job = BiomeMap.GetTerrainGenerationJob(adjustment, lens.level);
+          job = StaticBiomeMap.GetTerrainGenerationJob(adjustment, lens.level);
         }
         /// if it's out of focus, we want to save the chunk to file
       } else {

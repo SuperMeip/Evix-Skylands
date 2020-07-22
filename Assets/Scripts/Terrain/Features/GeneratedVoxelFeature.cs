@@ -15,7 +15,7 @@
     /// </summary>
     /// <param name="root"></param>
     /// <param name="seed"></param>
-    public GeneratedVoxelFeature(Coordinate root, Coordinate parentChunkID, int seed) : base(root, parentChunkID) {
+    public GeneratedVoxelFeature(Coordinate root, int seed) : base(root) {
       this.seed = seed;
       generate();
     }
