@@ -63,6 +63,16 @@ namespace Evix {
       this.z = z;
     }
 
+    /// <summary>
+    /// Make a coordinate from a vec2
+    /// </summary>
+    /// <param name="vector2"></param>
+    public Coordinate(Vector2 vector2){
+      x = (int)vector2.x;
+      y = 0;
+      z = (int)vector2.y;
+    }
+
     /// see #serialization for more
     #endregion
 

@@ -1,5 +1,4 @@
-﻿using Evix.Terrain.Collections;
-using Evix.Terrain.DataGeneration.Biomes;
+﻿using Evix.Terrain.DataGeneration.Biomes;
 using Evix.Terrain.DataGeneration.Sources.Noise;
 using System.Collections.Generic;
 
@@ -58,6 +57,13 @@ namespace Evix.Terrain.DataGeneration {
     /// <param name="humidity"></param>
     /// <returns></returns>
     protected abstract Biome getBiomeForValues(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
+
+    /// <summary>
+    /// Get the biome to use for the given chunk
+    /// </summary>
+    /// <param name="chunkID"></param>
+    /// <returns></returns>
+    protected abstract Biome getBiomeForChunk(Coordinate chunkID);
 
     /// <summary>
     /// Get the temperature map value for the given world location (2D)
