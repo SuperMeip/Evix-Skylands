@@ -40,10 +40,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <summary>
     /// The polygon this vertex marks the center of if this vertex is for a voronoi shape's centerpoint.
     /// </summary>
-    public Polygon centerPointOf {
-      get;
-      private set;
-    }
+    public Polygon centerPointOf;
 
     /// <summary>
     /// Get if this vertex is connected to anything anymore
@@ -79,6 +76,15 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <param name="position"></param>
     public Vertex(Vector2 position) {
       this.position = position;
+    }
+
+    /// <summary>
+    /// Make a new vertex with two values
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    public Vertex(float x, float y) {
+      this.position = new Vector2(x, y);
     }
 
     /// <summary>
@@ -147,6 +153,16 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     public void setOutgoingVector(EdgeVector outgoingVector, int polygonID = 0) {
       outgoingVectors.Add(polygonID, outgoingVector);
+    }
+
+    /// <summary>
+    /// Preform an action on each pair of edges for this vector
+    /// </summary>
+    /// <param name="action"></param>
+    public void forEachVectorPair(Action<EdgeVector, EdgeVector> action) {
+      foreach(KeyValuePair<int, EdgeVector> outgoingVectorKeyValyePair in outgoingVectors) {
+        action(incommingVectors[outgoingVectorKeyValyePair.Key], outgoingVectorKeyValyePair.Value);
+      }
     }
 
     /// <summary>

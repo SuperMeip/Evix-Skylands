@@ -97,10 +97,30 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
+    /// Preform an action on each edge of this polygon
+    /// </summary>
+    /// <param name="action"></param>
+    public void forEachEdgeUntil(Func<EdgeVector, bool> action) {
+      EdgeVector currentEdge = firstEdge;
+      do {
+        if (!action(currentEdge)) {
+          break;
+        }
+      } while (currentEdge != firstEdge);
+    }
+
+    /// <summary>
     /// Get all the verticies in this polygon
     /// </summary>
     public void forEachVertex(Action<Vertex> action) {
       forEachEdge(edge => action(edge.pointsTo));
+    }
+
+    /// <summary>
+    /// Get all the verticies in this polygon
+    /// </summary>
+    public void forEachVertexUntil(Func<Vertex, bool> action) {
+      forEachEdgeUntil(edge => action(edge.pointsTo));
     }
 
     /// <summary>
