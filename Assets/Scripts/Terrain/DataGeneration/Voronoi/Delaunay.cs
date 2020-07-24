@@ -346,28 +346,40 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 			Polygon    triangle2  = tri2_edge1.parentShape;
 
 			// Move each edge to it's new triangle and target
+
+			/// update the triangle parents of edges and points that change
+			tri1_edge2.setParentShape(triangle2);
+			tri2_edge2.setParentShape(triangle1);
+			tri1_edge3.pointsTo.removeParentShape(triangle2.Id);
+			tri2_edge3.pointsTo.removeParentShape(triangle1.Id);
+
+			// update targets of the two rotated vectors
 			tri1_edge1.changeTarget(tri1_edge2.pointsTo, triangle1.Id);
+			tri2_edge1.changeTarget(tri2_edge2.pointsTo, triangle2.Id);
+
+			/// Update associations
+
+			// 1
 			tri1_edge1.setNextEdge(tri1_edge3, triangle1.Id);
 			tri1_edge1.setPreviousEdge(tri2_edge2, triangle1.Id);
 
-			tri1_edge2.setParentShape(triangle2);
+			// 2
 			tri1_edge2.setNextEdge(tri2_edge1, triangle2.Id);
 			tri1_edge2.setPreviousEdge(tri2_edge3, triangle2.Id);
 
-			// TODO: whereever I see a tri1 being set to a tri2's next edge; I may need to map the outgoing vector and remove it's old
-			// triangle ID, to avoid duping
-			// maybe pass a value in to swap in nextEdge instead of just adding the value to the dic of outgoing vecs
+			// 3
 			tri1_edge3.setNextEdge(tri2_edge2, triangle1.Id);
 			tri1_edge3.setPreviousEdge(tri1_edge1, triangle1.Id);
 
-			tri2_edge1.changeTarget(tri2_edge2.pointsTo, triangle2.Id);
+			//4
 			tri2_edge1.setNextEdge(tri2_edge3, triangle2.Id);
 			tri2_edge1.setPreviousEdge(tri1_edge2, triangle2.Id);
 
-			tri2_edge2.setParentShape(triangle1);
+			//5
 			tri2_edge2.setNextEdge(tri1_edge1, triangle1.Id);
 			tri2_edge2.setPreviousEdge(tri1_edge3, triangle1.Id);
 
+			//6
 			tri2_edge3.setNextEdge(tri1_edge2, triangle2.Id);
 			tri2_edge3.setPreviousEdge(tri2_edge1, triangle2.Id);
 
