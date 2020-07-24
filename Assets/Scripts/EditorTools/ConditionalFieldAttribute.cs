@@ -638,7 +638,9 @@ namespace Evix.EditorTools {
 		/// Apply changes on GameObject to prefab
 		/// </summary>
 		public static void ApplyPrefab(GameObject instance) {
+#pragma warning disable CS0618 // Type or member is obsolete
 			var instanceRoot = PrefabUtility.FindRootGameObjectWithSameParentPrefab(instance);
+#pragma warning restore CS0618 // Type or member is obsolete
 
 			var targetPrefab = PrefabUtility.GetCorrespondingObjectFromSource(instanceRoot);
 
@@ -647,7 +649,9 @@ namespace Evix.EditorTools {
 				return;
 			}
 
+#pragma warning disable CS0618 // Type or member is obsolete
 			PrefabUtility.ReplacePrefab(instanceRoot, targetPrefab, ReplacePrefabOptions.ConnectToPrefab);
+#pragma warning restore CS0618 // Type or member is obsolete
 		}
 
 		/// <summary>
@@ -665,7 +669,9 @@ namespace Evix.EditorTools {
 		}
 
 		public static bool IsPrefabInstance(this GameObject go) {
+#pragma warning disable CS0618 // Type or member is obsolete
 			return PrefabUtility.GetPrefabType(go) == PrefabType.Prefab;
+#pragma warning restore CS0618 // Type or member is obsolete
 		}
 
 		#endregion

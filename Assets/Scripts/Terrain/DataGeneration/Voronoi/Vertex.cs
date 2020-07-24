@@ -53,12 +53,14 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// The outgoing half edge if this vertex is in a half-edge linked list
     /// The half edge originating from this vertex
     /// </summary>
-    Dictionary<int, EdgeVector> outgoingVectors;
+    Dictionary<int, EdgeVector> outgoingVectors
+      = new Dictionary<int, EdgeVector>();
 
     /// <summary>
     /// The edge pointing to this vertex.
     /// </summary>
-    Dictionary<int, EdgeVector> incommingVectors;
+    Dictionary<int, EdgeVector> incommingVectors
+      = new Dictionary<int, EdgeVector>();
 
     #region Constructors and Inplicit Conversions
 
@@ -143,7 +145,10 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     /// <param name="polygonIDToRemove"></param>
     internal void removeParentShape(int polygonIDToRemove) {
-      parentShapes.Remove(polygonIDToRemove);
+      /// 0 doesn't get set
+      if (polygonIDToRemove != 0) {
+        parentShapes.Remove(polygonIDToRemove);
+      }
       incommingVectors.Remove(polygonIDToRemove);
       outgoingVectors.Remove(polygonIDToRemove);
     }
@@ -152,7 +157,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// Set the outgoing vector for the given polygon this is part of
     /// </summary>
     public void setOutgoingVector(EdgeVector outgoingVector, int polygonID = 0) {
-      outgoingVectors.Add(polygonID, outgoingVector);
+      outgoingVectors[polygonID] = outgoingVector;
     }
 
     /// <summary>
@@ -182,7 +187,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// Set the incomming vector for the given polygon this is part of
     /// </summary>
     public void setIncommingVector(EdgeVector incommingVector, int polygonID = 0) {
-      incommingVectors.Add(polygonID, incommingVector);
+      incommingVectors[polygonID] = incommingVector;
     }
 
     /// <summary>
@@ -197,16 +202,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
       }
 
       return null;
-    }
-
-    /// <summary>
-    /// Hash it by using the value to the tenths with the coord hash
-    /// </summary>
-    /// <returns></returns>
-    public override int GetHashCode() {
-      return new Coordinate(
-        position * 10
-      ).GetHashCode();
     }
 
     #endregion
@@ -241,6 +236,20 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
       return other.position == position;
     }
 
+    /// <summary>
+    /// Hash it by using the value to the tenths with the coord hash
+    /// </summary>
+    /// <returns></returns>
+    public override int GetHashCode() {
+      return new Coordinate(
+        position * 10
+      ).GetHashCode();
+    }
+
     #endregion
+
+    public override string ToString() {
+      return $"({x}, {y})";
+    }
   }
 }

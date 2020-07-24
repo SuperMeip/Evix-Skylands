@@ -22,12 +22,12 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
-    /// The sides count of this polygon
+    /// the side count of this shape
     /// </summary>
     public int sides {
       get;
       private set;
-    } = 0;
+    }
 
     /// <summary>
     /// The center of this voronoi polygon/cell 
@@ -44,6 +44,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     public EdgeVector firstEdge {
       get;
+      private set;
     }
 
     /// <summary>
@@ -78,6 +79,16 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
+    /// If the first edge is no onger connected to this polygon, use the replacement
+    /// </summary>
+    /// <param name="rootEdge"></param>
+    public void checkAndSetEdgeList(EdgeVector rootEdge) {
+      if (firstEdge.parentShape != this) {
+        firstEdge = rootEdge;
+      }
+    }
+
+    /// <summary>
     /// Clear the center point of this voronoi shape
     /// </summary>
     public void clearVoronoiCenter() {
@@ -93,6 +104,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
       EdgeVector currentEdge = firstEdge;
       do {
         action(currentEdge);
+        currentEdge = currentEdge.nextEdge;
       } while (currentEdge != firstEdge);
     }
 
@@ -124,6 +136,14 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
+    /// count up all the edges
+    /// </summary>
+    public void countEdges() {
+      sides = 0;
+      forEachEdge(_ => sides++);
+    }
+
+    /// <summary>
     /// Equals override
     /// </summary>
     /// <param name="obj"></param>
@@ -147,6 +167,14 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <returns></returns>
     public override int GetHashCode() {
       return Id;
+    }
+
+    /// <summary>
+    /// Override tostring shape
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString() {
+      return $"{{{Id}}}";
     }
   }
 }

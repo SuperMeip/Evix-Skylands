@@ -65,8 +65,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 		//This structure assumes we have a vertex class with a reference to a half edge going from that vertex
 		//and a face (triangle) class with a reference to a half edge which is a part of this face 
-		public EdgeVector(Vertex pointsTo) {
+		public EdgeVector(Vertex pointsTo, int parentShapeId = 0) {
       this.pointsTo = pointsTo;
+			pointsTo.setIncommingVector(this, parentShapeId);
 		}
 
 		/// <summary>
@@ -82,15 +83,12 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 				/// start with the root and chain the edges
 				root = edges[0];
-				EdgeVector previousEdge = root;
-				for (int index = 1; index < edges.Count; index++) {
+				EdgeVector previousEdge = edges[edges.Count - 1];
+				for (int index = 0; index < edges.Count; index++) {
 					previousEdge.setNextEdge(edges[index]);
 					edges[index].setPreviousEdge(previousEdge);
 					previousEdge = edges[index];
 				}
-
-				/// set the prev of the root to the last edge to complete the chain
-				root.setPreviousEdge(edges[edges.Count - 1]);
 			}
 
 			return root;
@@ -99,13 +97,21 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		#region Get and Set Members
 
 		/// <summary>
+		/// Change what vertex this points to
+		/// </summary>
+		/// <param name="vertex"></param>
+		public void changeTarget(Vertex vertex, int polygonID = 0) {
+			pointsTo = vertex;
+			vertex.setIncommingVector(this, polygonID);
+		}
+
+		/// <summary>
 		/// Set the next edge
 		/// </summary>
 		/// <param name="nextEdge"></param>
 		public void setNextEdge(EdgeVector nextEdge, int polygonID = 0) {
 			this.nextEdge = nextEdge;
 			pointsTo.setOutgoingVector(nextEdge, polygonID);
-			nextEdge.pointsTo.setIncommingVector(this, polygonID);
 		}
 
 		/// <summary>
@@ -114,7 +120,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		/// <param name="nextEdge"></param>
 		public void setPreviousEdge(EdgeVector previousEdge, int polygonID = 0) {
 			prevEdge = previousEdge;
-			pointsTo.setIncommingVector(previousEdge, polygonID);
 			previousEdge.pointsTo.setOutgoingVector(this, polygonID);
 		}
 
@@ -125,13 +130,20 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		/// <param name="parentShape"></param>
 		public void setParentShape(Polygon parentShape) {
 			this.parentShape = parentShape;
-			pointsTo.parentShapes.Add(parentShape.Id, parentShape);
-			if (pointsTo.parentShapes.ContainsKey(0)) {
+			// if this was part of an empty shape before, move it's hook ups to the new shape
+			if (pointsTo.getIncommingVector(0) != null) {
+				pointsTo.setIncommingVector(pointsTo.getIncommingVector(), parentShape.Id);
+				pointsTo.setOutgoingVector(pointsTo.getOutgoingVector(), parentShape.Id);
 				pointsTo.removeParentShape(0);
 			}
+
+			pointsTo.setParentShape(parentShape);
 		}
 
-    #endregion
+		#endregion
 
-  }
+		public override string ToString() {
+			return $"=>{pointsTo}";
+		}
+	}
 }

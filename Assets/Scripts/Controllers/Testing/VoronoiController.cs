@@ -1,6 +1,7 @@
 ﻿using Evix.Terrain.DataGeneration.Voronoi;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Evix.Controllers.Testing {
@@ -49,12 +50,12 @@ namespace Evix.Controllers.Testing {
 
 
       //Generate the voronoi diagram
-      List<Polygon> cells = Delaunay.GenerateVoronoiDiagram(randomSites);
-
+      var delaunayData = Delaunay.GenerateTriangulation(randomSites);
+      var cells = Delaunay.GenerateVoronoiCells(delaunayData);
 
       //Debug
       //Display the voronoi diagram
-      DisplayVoronoiCells(cells);
+      DisplayVoronoiCells(cells.Values.ToList());
 
       //Display the sites
       Gizmos.color = Color.white;

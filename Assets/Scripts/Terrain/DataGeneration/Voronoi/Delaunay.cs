@@ -22,14 +22,15 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 			}
 
 			/// Step 0. Set up the return data.
-			(HashSet<Vertex> vertices, Dictionary<int, Polygon> triangles) delaunayData = (new HashSet<Vertex>(), new Dictionary<int, Polygon>());
+			(HashSet<Vertex> vertices, Dictionary<int, Polygon> triangles) delaunayData 
+				= (new HashSet<Vertex>(), new Dictionary<int, Polygon>());
 
 			/// Step 1. Create the super triangle to surround the area.
 			// The super triangle should be bigger than any other thing, and contain all points by a large margin.
 			Polygon superTriangle = new Polygon(EdgeVector.MakedLinkedShape(new List<EdgeVector> {
-				new EdgeVector((-1000000, 1000000)),
-				new EdgeVector((1000000, 1000000)),
-				new EdgeVector((0, 1000000))
+				new EdgeVector((-2000000, 2000000)),
+				new EdgeVector((2000000, 2000000)),
+				new EdgeVector((0, -2500000))
 			}));
 
 			delaunayData.triangles.Add(superTriangle.Id, superTriangle);
@@ -42,10 +43,12 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 				// 2b. try to get an existing triangle that's around this point
 				Polygon surroundingTriangle = TriangulationWalk(pointToAdd, delaunayData.triangles);
-				// 2c. Try to split that triangle using the point we want to add
-				if (surroundingTriangle != null) {
-					SplitTriangleAtPoint(surroundingTriangle, pointToAdd, delaunayData);
+				if (surroundingTriangle == null) {
+					World.Debug.logAndThrowError<System.ArgumentOutOfRangeException>($"No surrounding triangle found for attempted added point {pointToAdd}. Must be outside of supertriangle range! Oh No");
 				}
+
+				// 2c. Try to split that triangle using the point we want to add
+				SplitTriangleAtPoint(surroundingTriangle, pointToAdd, delaunayData);
 
 				// 2d. Initialize stack. Place all triangles which are adjacent to the edges opposite p on a LIFO stack
 				//   The report says we should place triangles, but it's easier to place edges with our data structure
@@ -153,6 +156,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 						originPointingVector.setNextEdge(incompleteEdgeAndNeededOrigin.Value, voronoiCell.Id);
 					}
 				}
+
+				/// get the edge count
+				voronoiCell.countEdges();
 			}
 
 			return voronoiCells;
@@ -167,7 +173,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 			Polygon intersectingTriangle = null;
 
 			/// Get a random start triangle
-			Polygon currentTriangle = triangles[UnityEngine.Random.Range(0, triangles.Count)];
+			Polygon currentTriangle = triangles.Values.ToArray()[UnityEngine.Random.Range(0, triangles.Count)];
 
 			//Start the triangulation walk to find the intersecting triangle
 			int safety = 0;
@@ -227,7 +233,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		/// <param name="splitPosition"></param>
 		/// <param name="triangles"></param>
 		static void SplitTriangleAtPoint(Polygon shape, Vertex splitPosition, (HashSet<Vertex> vertices, Dictionary<int, Polygon> triangles) delaunayData) {
-
 			// collect all the new edges
 			List<EdgeVector> allNewEdges = new List<EdgeVector>();
 			/// foreach edge in the original shape, we want to create a new triangle using the split position.
@@ -324,13 +329,49 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		}
 
 		/// <summary>
-		/// 
+		/// Flip the connecting base of two triangles 90 degrees.
 		/// </summary>
 		/// <param name="triangleBaseToTest"></param>
 		private static void FlipTriangleEdge(EdgeVector triangleBaseToTest) {
-			Polygon triangle = triangleBaseToTest.parentShape;
-			Polygon oppositeTriangle = triangleBaseToTest.oppositeEdge.parentShape;
+			/// The data we need											 
+			// This edge's triangle edges
+			EdgeVector tri1_edge1 = triangleBaseToTest;
+			EdgeVector tri1_edge2 = tri1_edge1.nextEdge;
+			EdgeVector tri1_edge3 = tri1_edge1.prevEdge;
+			Polygon    triangle1  = tri1_edge1.parentShape;
 
+			// The opposite edge's triangle edges
+			EdgeVector tri2_edge1 = tri1_edge1.oppositeEdge;
+			EdgeVector tri2_edge2 = tri2_edge1.nextEdge;
+			EdgeVector tri2_edge3 = tri2_edge1.prevEdge;
+			Polygon    triangle2  = tri2_edge1.parentShape;
+
+			// Move each edge to it's new triangle and target
+			tri1_edge1.changeTarget(tri1_edge2.pointsTo, triangle1.Id);
+			tri1_edge1.setNextEdge(tri1_edge3, triangle1.Id);
+			tri1_edge1.setPreviousEdge(tri2_edge2, triangle1.Id);
+
+			tri1_edge2.setParentShape(triangle2);
+			tri1_edge2.setNextEdge(tri2_edge1, triangle2.Id);
+			tri1_edge2.setPreviousEdge(tri2_edge3, triangle2.Id);
+
+			tri1_edge3.setNextEdge(tri2_edge2, triangle1.Id);
+			tri1_edge3.setPreviousEdge(tri1_edge1, triangle1.Id);
+
+			tri2_edge1.changeTarget(tri2_edge2.pointsTo, triangle2.Id);
+			tri2_edge1.setNextEdge(tri2_edge3, triangle2.Id);
+			tri2_edge1.setPreviousEdge(tri1_edge2, triangle2.Id);
+
+			tri2_edge2.setParentShape(triangle1);
+			tri2_edge2.setNextEdge(tri1_edge1, triangle1.Id);
+			tri2_edge2.setPreviousEdge(tri1_edge3, triangle1.Id);
+
+			tri2_edge3.setNextEdge(tri1_edge2, triangle2.Id);
+			tri2_edge3.setPreviousEdge(tri2_edge1, triangle2.Id);
+
+			// Make sure we don't delete any firstEdge connection.
+			triangle1.checkAndSetEdgeList(tri1_edge3);
+			triangle2.checkAndSetEdgeList(tri2_edge1);
 		}
 
 		/// <summary>
