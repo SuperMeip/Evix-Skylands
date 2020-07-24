@@ -64,7 +64,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 				// Step 3. Restore the delaunay triangulation
 				int safetyCounter = 100000;
-				do {
+				while (trianglesToInvestigate.Count > 0 && safetyCounter-- > 0) {
 					EdgeVector triangleBaseToTest = trianglesToInvestigate.Pop();
 					// 3a. Go through the stack and find triangles that need to be flipped
 					if (ShouldFlipTriangleEdgeForDelaunay(
@@ -84,8 +84,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 							}
 						});
 					}
-				// continue while we have a stack or until the safety triggers
-				} while (trianglesToInvestigate.Count < 0 && safetyCounter-- > 0);
+				}
 			}
 
 			// Step 4. Remove the super triangle.
@@ -355,6 +354,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 			tri1_edge2.setNextEdge(tri2_edge1, triangle2.Id);
 			tri1_edge2.setPreviousEdge(tri2_edge3, triangle2.Id);
 
+			// TODO: whereever I see a tri1 being set to a tri2's next edge; I may need to map the outgoing vector and remove it's old
+			// triangle ID, to avoid duping
+			// maybe pass a value in to swap in nextEdge instead of just adding the value to the dic of outgoing vecs
 			tri1_edge3.setNextEdge(tri2_edge2, triangle1.Id);
 			tri1_edge3.setPreviousEdge(tri1_edge1, triangle1.Id);
 
