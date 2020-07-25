@@ -12,9 +12,9 @@ namespace Evix.Controllers.Testing {
 
     public int seed = 0;
 
-    public float halfMapSize = 10f;
+    public int mapRadius = 100;
 
-    public float numberOfPoints = 20;
+    public int numberOfPoints = 20;
 
     private void OnDrawGizmos() {
       if (!isEnabled) {
@@ -27,19 +27,19 @@ namespace Evix.Controllers.Testing {
       //Generate random numbers with a seed
       Random.InitState(seed);
 
-      float max = halfMapSize;
-      float min = -halfMapSize;
+      int max = mapRadius;
+      int min = -mapRadius;
 
       for (int i = 0; i < numberOfPoints; i++) {
-        float randomX = Random.Range(min, max);
-        float randomZ = Random.Range(min, max);
+        int randomX = Random.Range(min, max);
+        int randomZ = Random.Range(min, max);
 
-        randomSites.Add(new Vector3(randomX, 0f, randomZ));
+        randomSites.Add(new Vector2(randomX, randomZ));
       }
 
 
       //Points outside of the screen for voronoi which has some cells that are infinite
-      float bigSize = halfMapSize * 5f;
+      float bigSize = mapRadius * 5f;
 
       //Star shape which will give a better result when a cell is infinite large
       //When using other shapes, some of the infinite cells misses triangles
@@ -50,12 +50,14 @@ namespace Evix.Controllers.Testing {
 
 
       //Generate the voronoi diagram
-      var delaunayData = Delaunay.GenerateTriangulation(randomSites);
-      var cells = Delaunay.GenerateVoronoiCells(delaunayData);
+      var (vertices, triangles) = Delaunay.GenerateTriangulation(randomSites);
+      var cells = Delaunay.GenerateVoronoiCells((vertices, triangles));
 
       //Debug
       //Display the voronoi diagram
-      DisplayVoronoiCells(cells.Values.ToList());
+      //DisplayVoronoiCells(triangles.Values.ToList());
+      DisplayVoronoiCells(triangles.Values.ToList(), Vector3.zero);
+      DisplayVoronoiCells(cells.Values.ToList(), Vector3.forward, true);
 
       //Display the sites
       Gizmos.color = Color.white;
@@ -68,13 +70,11 @@ namespace Evix.Controllers.Testing {
     }
 
     //Display the voronoi diagram with mesh
-    private void DisplayVoronoiCells(List<Polygon> cells) {
+    private void DisplayVoronoiCells(List<Polygon> cells, Vector3 positionOffset, bool drawWire = false) {
       Random.InitState(seed);
 
       for (int i = 0; i < cells.Count; i++) {
         Polygon c = cells[i];
-
-        Vector2 p1 = c.center;
 
         Gizmos.color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f);
 
@@ -82,7 +82,10 @@ namespace Evix.Controllers.Testing {
 
         List<int> triangles = new List<int>();
 
-        vertices.Add(p1);
+        if (c.isVoronoi) {
+          Vector2 p1 = c.center;
+          vertices.Add(p1);
+        }
 
         c.forEachEdge(edge => {
           Vector2 p3 = edge.start;
@@ -104,7 +107,11 @@ namespace Evix.Controllers.Testing {
 
         triangleMesh.RecalculateNormals();
 
-        Gizmos.DrawMesh(triangleMesh);
+        if (drawWire == true) {
+          Gizmos.DrawWireMesh(triangleMesh, positionOffset);
+        } else {
+          Gizmos.DrawMesh(triangleMesh, positionOffset);
+        }
       }
     }
   }

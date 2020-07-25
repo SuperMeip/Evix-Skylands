@@ -48,7 +48,13 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     public bool isConnectedToAnything {
       get => incommingVectors.Count > 0 || centerPointOf != null;
     }
-    
+
+    /// <summary>
+    /// The number of vectors emerging from this point
+    /// </summary>
+    public int outgoingVectorCount 
+      => outgoingVectors.Count;
+
     /// <summary>
     /// The outgoing half edge if this vertex is in a half-edge linked list
     /// The half edge originating from this vertex
@@ -86,7 +92,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <param name="x"></param>
     /// <param name="y"></param>
     public Vertex(float x, float y) {
-      this.position = new Vector2(x, y);
+      position = new Vector2(x, y);
     }
 
     /// <summary>
@@ -118,6 +124,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     /// <param name="coordinates"></param>
     public static implicit operator Vector2(Vertex vertex) {
+      if (vertex == null) {
+        var test = 12;
+      }
       return vertex.position;
     }
 

@@ -55,6 +55,13 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
+    /// If this shape obj is empty/doesn't have edges
+    /// </summary>
+    public bool isEmpty {
+      get => firstEdge == null;
+    }
+
+    /// <summary>
     /// Make a polygon centered on the given cell
     /// </summary>
     /// <param name="center"></param>
@@ -83,7 +90,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     /// <param name="rootEdge"></param>
     public void checkAndSetEdgeList(EdgeVector rootEdge) {
-      if (firstEdge.parentShape != this) {
+      if (firstEdge == null || firstEdge.parentShape != this) {
         firstEdge = rootEdge;
       }
     }
@@ -97,11 +104,29 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     }
 
     /// <summary>
+    /// Check if all the edges are connected correctly and this is a complete shape
+    /// </summary>
+    /// <returns></returns>
+    public bool checkIsComplete() {
+      bool chainIsUnbroken = true;
+      forEachEdgeUntil(edge => {
+        chainIsUnbroken = edge != null;
+
+        return chainIsUnbroken;
+      });
+
+      return chainIsUnbroken;
+    }
+
+    /// <summary>
     /// Preform an action on each edge of this polygon
     /// </summary>
     /// <param name="action"></param>
     public void forEachEdge(Action<EdgeVector> action) {
       EdgeVector currentEdge = firstEdge;
+        if (currentEdge == null) {
+          var x = 1;
+        }
       do {
         action(currentEdge);
         currentEdge = currentEdge.nextEdge;
@@ -118,6 +143,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
         if (!action(currentEdge)) {
           break;
         }
+        currentEdge = currentEdge.nextEdge;
       } while (currentEdge != firstEdge);
     }
 

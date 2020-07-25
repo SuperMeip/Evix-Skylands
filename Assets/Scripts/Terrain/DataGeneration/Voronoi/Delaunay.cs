@@ -100,11 +100,16 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		public static Dictionary<Vertex, Polygon> GenerateVoronoiCells((HashSet<Vertex> vertices, Dictionary<int, Polygon> triangles) delaunayData) {
 			Dictionary<Vertex, Polygon> voronoiCells = new Dictionary<Vertex, Polygon>();
 			Dictionary<Vertex, Dictionary<Vertex, Dictionary <Vertex, Vertex>>> circumcenterCache = new Dictionary<Vertex, Dictionary<Vertex, Dictionary<Vertex, Vertex>>>();
-			
+
 			/// We create a voronoi polygon cell for every delanuay vertex.
-			foreach(Vertex delaunayVertex in delaunayData.vertices) {
+			foreach (Vertex delaunayVertex in delaunayData.vertices) {
+				/// we need at least 3 edges to make a shape
+				// make the new cell
 				Polygon voronoiCell = new Polygon(delaunayVertex);
-				voronoiCells[delaunayVertex] = voronoiCell;
+
+				// TODO: try moving this logic outside each individual vertex. Go shape by shape instead and build shapes using the incompleteEdgesByNeeded dic by what vertex the outwardVector points toward.
+				//// anywhere there's a vector pointing toward a point, with triangles on both sides of the edge, make a voronoi edge, and index it by vertex is pointsTo and by what it needs for it's origin edge  
+				// first see why these shapes arn't completing. And see if we still have double the out to in vectors on verticies
 
 				// these are edges we create that then need to be hooked up to an edge pointing at their start point. (as prev)
 				//    indexed by the needed start point, or the would be edge.prevEdge.pointsTo
@@ -118,36 +123,39 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 				//    TODO: hopefully keeping them all outgoing will keep them all facing the same way
 				delaunayVertex.forEachOutgoingVector((outgoingVector, polygonID) => {
 					Polygon forwardTriangle = outgoingVector.parentShape;
-					Polygon behindTriangle = outgoingVector.oppositeEdge.parentShape;
+					Polygon behindTriangle = outgoingVector.oppositeEdge?.parentShape;
 
-					// Get the two voronoi points we use to create our new edge (and index it by what we want to hook it up to)
-					Vertex newEdgePointsTo = CalculateTriangleCircumcenter(forwardTriangle, circumcenterCache);
-					Vertex newEdgeOriginPoint = CalculateTriangleCircumcenter(behindTriangle, circumcenterCache);
+					if (forwardTriangle != null && behindTriangle != null) {
+						// Get the two voronoi points we use to create our new edge (and index it by what we want to hook it up to)
+						Vertex newEdgePointsTo = CalculateTriangleCircumcenter(forwardTriangle, circumcenterCache);
+						Vertex newEdgeOriginPoint = CalculateTriangleCircumcenter(behindTriangle, circumcenterCache);
 
-					// make out new edge for this ray.
-					EdgeVector newEdge = new EdgeVector(newEdgePointsTo);
-					newEdge.setParentShape(voronoiCell);
+						// make out new edge for this ray.
+						EdgeVector newEdge = new EdgeVector(newEdgePointsTo);
+						newEdge.setParentShape(voronoiCell);
+						voronoiCell.checkAndSetEdgeList(newEdge);
 
-					/// Check if there's an incomplete edge waiting to be hooked up to this as it's start (prev.pointsTo) point.
-					if (incompleEdgesByNeededOriginPoint.ContainsKey(newEdgePointsTo)) {
-						EdgeVector edgeWithThisEdgeAsPrevious = incompleEdgesByNeededOriginPoint[newEdgePointsTo];
-						newEdge.setNextEdge(edgeWithThisEdgeAsPrevious, voronoiCell.Id);
-						edgeWithThisEdgeAsPrevious.setPreviousEdge(newEdge, voronoiCell.Id);
-						// set it in the complete list to where it points, so we can find it later.
-						completeEdges[edgeWithThisEdgeAsPrevious.pointsTo] = edgeWithThisEdgeAsPrevious;
-						incompleEdgesByNeededOriginPoint.Remove(newEdgePointsTo);
-					}
+						/// Check if there's an incomplete edge waiting to be hooked up to this as it's start (prev.pointsTo) point.
+						if (incompleEdgesByNeededOriginPoint.ContainsKey(newEdgePointsTo)) {
+							EdgeVector edgeWithThisEdgeAsPrevious = incompleEdgesByNeededOriginPoint[newEdgePointsTo];
+							newEdge.setNextEdge(edgeWithThisEdgeAsPrevious, voronoiCell.Id);
+							edgeWithThisEdgeAsPrevious.setPreviousEdge(newEdge, voronoiCell.Id);
+							// set it in the complete list to where it points, so we can find it later.
+							completeEdges[edgeWithThisEdgeAsPrevious.pointsTo] = edgeWithThisEdgeAsPrevious;
+							incompleEdgesByNeededOriginPoint.Remove(newEdgePointsTo);
+						}
 
-					// add this to the incomplete edges, indexed by the start point we need an edge pointing to.
-					if (incompleEdgesByNeededOriginPoint.ContainsKey(newEdgeOriginPoint)) {
-						World.Debug.logAndThrowError<AccessViolationException>($"Two vectors must be facing different ways while making a voronoi cell around {new Coordinate(delaunayVertex.position)}");
-					} else {
-						incompleEdgesByNeededOriginPoint[newEdgeOriginPoint] = newEdge;
+						// add this to the incomplete edges, indexed by the start point we need an edge pointing to.
+						if (incompleEdgesByNeededOriginPoint.ContainsKey(newEdgeOriginPoint)) {
+							World.Debug.logAndThrowError<AccessViolationException>($"Two vectors must be facing different ways while making a voronoi cell around {new Coordinate(delaunayVertex.position)}");
+						} else {
+							incompleEdgesByNeededOriginPoint[newEdgeOriginPoint] = newEdge;
+						}
 					}
 				});
 
 				// close up the remaining incomplete edges to form the shape.
-				foreach(KeyValuePair<Vertex, EdgeVector> incompleteEdgeAndNeededOrigin in incompleEdgesByNeededOriginPoint) {
+				foreach (KeyValuePair<Vertex, EdgeVector> incompleteEdgeAndNeededOrigin in incompleEdgesByNeededOriginPoint) {
 					/// if the complete edges dic contains a vector pointing to the start we need
 					if (completeEdges.TryGetValue(incompleteEdgeAndNeededOrigin.Key, out EdgeVector originPointingVector)) {
 						// grab it and set it correctly.
@@ -157,7 +165,10 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 				}
 
 				/// get the edge count
-				voronoiCell.countEdges();
+				if (!voronoiCell.isEmpty && voronoiCell.checkIsComplete()) {
+					voronoiCell.countEdges();
+					voronoiCells[delaunayVertex] = voronoiCell;
+				}
 			}
 
 			return voronoiCells;
