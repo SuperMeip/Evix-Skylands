@@ -112,6 +112,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		public void setNextEdge(EdgeVector nextEdge, int polygonID = 0) {
 			this.nextEdge = nextEdge;
 			pointsTo.setOutgoingVector(nextEdge, polygonID);
+			pointsTo.setIncommingVector(this, polygonID);
 		}
 
 		/// <summary>
@@ -121,6 +122,7 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		public void setPreviousEdge(EdgeVector previousEdge, int polygonID = 0) {
 			prevEdge = previousEdge;
 			previousEdge.pointsTo.setOutgoingVector(this, polygonID);
+			prevEdge.pointsTo.setIncommingVector(prevEdge, polygonID);
 		}
 
 		/// <summary>

@@ -1,6 +1,9 @@
 ﻿using Evix.Terrain.DataGeneration.Biomes;
 using Evix.Terrain.DataGeneration.Sources.Noise;
+using Evix.Terrain.DataGeneration.Voronoi;
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Evix.Terrain.DataGeneration {
 
@@ -28,35 +31,63 @@ namespace Evix.Terrain.DataGeneration {
     /// <summary>
     /// The types of biomes this BiomeMap can produce/contain
     /// </summary>
-    protected readonly IBiomeType[] biomeTypes;
+    protected readonly IBiomeType[] validBiomeTypes;
+
+    /// <summary>
+    /// The individual biomes in this map, indexed by ID
+    /// </summary>
+    protected readonly Dictionary<int, Biome> biomes
+      = new Dictionary<int, Biome>();
 
     /// <summary>
     /// The center points of biomes, dinoted by the center points of Voronoi polygons in our map
     /// TODO: Make this a quadtree as well for itteration searches during block gen
     /// </summary>
-    protected readonly Dictionary<Coordinate, Biome> biomeVoronoiCenters;
+    protected readonly Dictionary<Vertex, Biome> biomeVoronoiCenters
+       = new Dictionary<Vertex, Biome>();
 
     /// <summary>
     /// The noise generator used for this voxel source
     /// </summary>
     protected readonly FastNoise noise;
 
-    protected BiomeMap(int seed, IBiomeType[] biomeTypes) {
-      this.seed = seed;
-      this.biomeTypes = biomeTypes;
+    /// <summary>
+    /// Make a new biome map for a given level:
+    /// </summary>
+    /// <param name="seed"></param>
+    /// <param name="biomeTypes"></param>
+    protected BiomeMap(Level level, IBiomeType[] biomeTypes) {
+      /// Generate the biome map using a voronoi diagram with a random set of points
+      Vector2[] randomBiomeCenters = new Vector2[0];
+      Dictionary<Vertex, Polygon> voronoiCells = Delaunay.GenerateVoronoiCells(Delaunay.GenerateTriangulation(randomBiomeCenters));
+      foreach(Vertex voronoiCenter in voronoiCells.Keys) {
+        biomeVoronoiCenters[voronoiCenter] = getBiomeType(voronoiCenter.position);
+      }
+
+      seed = level.seed;
+      validBiomeTypes = biomeTypes;
       noise = new FastNoise(seed);
     }
 
     /// <summary>
-    /// The formula to get a biome given the height temp and humidity of the 2D biome map.
-    /// This should also check neighboring biomes to see if we are simply extending one or need to make a new one.
+    /// Get the biome type for the given location on this biomemap
     /// </summary>
     /// <param name="biomeVoronoiCenter"></param>
-    /// <param name="surfaceHeight"></param>
-    /// <param name="temperature"></param>
-    /// <param name="humidity"></param>
     /// <returns></returns>
-    protected abstract Biome getBiomeForValues(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
+    Biome getBiomeType(Vector2 biomeVoronoiCenter) {
+      return getBiomeTypeFor(
+        biomeVoronoiCenter,
+        getSurfaceHeight(biomeVoronoiCenter),
+        getTemperatureMapValue(biomeVoronoiCenter),
+        getMoistureMapValue(biomeVoronoiCenter)
+      );
+    }
+
+    /// <summary>
+    /// The formula to get a biome type to generate given the height temp and humidity of the 2D biome map.
+    /// </summary>
+    /// <returns></returns>
+    protected abstract Biome getBiomeTypeFor(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
 
     /// <summary>
     /// Get the biome to use for the given chunk

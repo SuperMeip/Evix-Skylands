@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using UnityEngine;
+using Evix.Terrain.DataGeneration.Voronoi;
 
 namespace Evix {
 
@@ -95,6 +96,14 @@ namespace Evix {
     }
 
     /// <summary>
+    /// Turn a vector3 into a coordinate.
+    /// </summary>
+    /// <param name="coordinates"></param>
+    public static implicit operator Coordinate(Vector2 coordinate) {
+      return new Coordinate((int)coordinate.x, 0, (int)coordinate.y);
+    }
+
+    /// <summary>
     /// Turn an int into a coordinate.
     /// </summary>
     /// <param name="coordinates"></param>
@@ -108,6 +117,22 @@ namespace Evix {
     /// <param name="coordinate"></param>
     public static implicit operator Vector3(Coordinate coordinate) {
       return new Vector3(coordinate.x, coordinate.y, coordinate.z);
+    }
+
+    /// <summary>
+    /// Make a coordinate into a vector 3
+    /// </summary>
+    /// <param name="coordinate"></param>
+    public static implicit operator Vertex(Coordinate coordinate) {
+      return new Vertex(coordinate.x, coordinate.z);
+    }
+
+    /// <summary>
+    /// Make a coordinate into a vector 3
+    /// </summary>
+    /// <param name="coordinate"></param>
+    public static implicit operator Coordinate(Vertex vertex) {
+      return new Coordinate(vertex.position);
     }
 
     #endregion
@@ -612,6 +637,36 @@ namespace Evix {
       }
 
       return Vector3.zero;
+    }
+
+    /// <summary>
+    /// Deconstruct keyvaluepairs
+    /// </summary>
+    /// <typeparam name="T1"></typeparam>
+    /// <typeparam name="T2"></typeparam>
+    /// <param name="tuple"></param>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    public static void Deconstruct<T1, T2>(this KeyValuePair<T1, T2> tuple, out T1 key, out T2 value) {
+      key = tuple.Key;
+      value = tuple.Value;
+    }
+
+    /// <summary>
+    /// Deconstruct coordinates
+    /// </summary>
+    public static void Deconstruct(this Coordinate coordinate, out int x, out int y, out int z) {
+      x = coordinate.x;
+      y = coordinate.y;
+      z = coordinate.z;
+    }
+
+    /// <summary>
+    /// Deconstruct coordinates
+    /// </summary>
+    public static void Deconstruct(this Coordinate coordinate, out int x, out int z) {
+      x = coordinate.x;
+      z = coordinate.z;
     }
   }
 

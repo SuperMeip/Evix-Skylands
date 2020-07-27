@@ -8,12 +8,29 @@ namespace Evix.Controllers.Testing {
 
   public class VoronoiController : MonoBehaviour {
 
+    /// <summary>
+    /// If the whole preview generation is enabled.
+    /// </summary>
     public bool isEnabled = false;
 
+    /// <summary>
+    /// If we should preview the delanuay diagram too
+    /// </summary>
+    public bool showDelaunayDiagam = false;
+
+    /// <summary>
+    /// The random seed to use
+    /// </summary>
     public int seed = 0;
 
+    /// <summary>
+    /// The map radius
+    /// </summary>
     public int mapRadius = 100;
 
+    /// <summary>
+    /// The number of points/voronoi cells to generate
+    /// </summary>
     public int numberOfPoints = 20;
 
     private void OnDrawGizmos() {
@@ -48,16 +65,15 @@ namespace Evix.Controllers.Testing {
       randomSites.Add(new Vector2(bigSize, 0f));
       randomSites.Add(new Vector2(-bigSize, 0f));
 
-
       //Generate the voronoi diagram
       var (vertices, triangles) = Delaunay.GenerateTriangulation(randomSites);
       var cells = Delaunay.GenerateVoronoiCells((vertices, triangles));
 
-      //Debug
       //Display the voronoi diagram
-      //DisplayVoronoiCells(triangles.Values.ToList());
-      DisplayVoronoiCells(triangles.Values.ToList(), Vector3.zero);
-      DisplayVoronoiCells(cells.Values.ToList(), Vector3.forward, true);
+      DrawShapes(cells.Values.ToList(), Vector3.zero);
+      if (showDelaunayDiagam) {
+        DrawShapes(triangles.Values.ToList(), Vector3.forward, true);
+      }
 
       //Display the sites
       Gizmos.color = Color.white;
@@ -69,14 +85,21 @@ namespace Evix.Controllers.Testing {
       }
     }
 
-    //Display the voronoi diagram with mesh
-    private void DisplayVoronoiCells(List<Polygon> cells, Vector3 positionOffset, bool drawWire = false) {
+    /// <summary>
+    /// Draw voronoi shapes for debugging purposes
+    /// </summary>
+    /// <param name="shapes"></param>
+    /// <param name="positionOffset"></param>
+    /// <param name="drawWire"></param>
+    void DrawShapes(List<Polygon> shapes, Vector3 positionOffset, bool drawWire = false) {
       Random.InitState(seed);
 
-      for (int i = 0; i < cells.Count; i++) {
-        Polygon c = cells[i];
+      for (int i = 0; i < shapes.Count; i++) {
+        Polygon c = shapes[i];
 
-        Gizmos.color = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f);
+        Gizmos.color = drawWire 
+          ? Color.black 
+          : new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f);
 
         List<Vector3> vertices = new List<Vector3>();
 

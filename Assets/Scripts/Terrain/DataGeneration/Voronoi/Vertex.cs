@@ -124,9 +124,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// </summary>
     /// <param name="coordinates"></param>
     public static implicit operator Vector2(Vertex vertex) {
-      if (vertex == null) {
-        var test = 12;
-      }
       return vertex.position;
     }
 

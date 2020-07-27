@@ -11,6 +11,6 @@
     /// </summary>
     /// <param name="root"></param>
     /// <returns></returns>
-    Biome make();
+    Biome make(int seed);
   }
 }

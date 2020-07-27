@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using UnityEngine;
 
 namespace Evix.Terrain.DataGeneration.Voronoi {
 
@@ -124,9 +122,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <param name="action"></param>
     public void forEachEdge(Action<EdgeVector> action) {
       EdgeVector currentEdge = firstEdge;
-        if (currentEdge == null) {
-          var x = 1;
-        }
+      if (currentEdge == null) {
+        var x = 1;
+      }
       do {
         action(currentEdge);
         currentEdge = currentEdge.nextEdge;
@@ -201,6 +199,39 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <returns></returns>
     public override string ToString() {
       return $"{{{Id}}}";
+    }
+  }
+
+  /// <summary>
+  /// Shape easy deconstructors
+  /// EX: var(a, (b, (c, _))) = triangle;
+  /// </summary>
+  public static class ShapeDeconstructors {
+
+    /// <summary>
+    /// Deconstruct keyvaluepairs
+    /// </summary>
+    /// <typeparam name="T1"></typeparam>
+    /// <typeparam name="T2"></typeparam>
+    /// <param name="tuple"></param>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    public static void Deconstruct(this Polygon shape, out Vertex firstPoint, out EdgeVector nextEdge) {
+      firstPoint = shape.firstEdge.pointsTo;
+      nextEdge = shape.firstEdge.nextEdge;
+    }
+
+    /// <summary>
+    /// Deconstruct keyvaluepairs
+    /// </summary>
+    /// <typeparam name="T1"></typeparam>
+    /// <typeparam name="T2"></typeparam>
+    /// <param name="tuple"></param>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    public static void Deconstruct(this EdgeVector edge, out Vertex pointsTo, out EdgeVector nextEdge) {
+      pointsTo = edge.pointsTo;
+      nextEdge = edge.nextEdge;
     }
   }
 }

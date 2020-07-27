@@ -5,6 +5,18 @@ namespace Evix.Terrain.DataGeneration.Biomes {
   public abstract class Biome {
 
     /// <summary>
+    /// The current universal incremented polygon id being used
+    /// </summary>
+    static int CurrentMaxBiomeID = 0;
+
+    /// <summary>
+    /// The universal id of this biome
+    /// </summary>
+    public int Id {
+      get;
+    }
+
+    /// <summary>
     /// The seed used to generate information about this biome
     /// </summary>
     protected readonly int seed;
@@ -24,6 +36,7 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     /// </summary>
     /// <param name="potentialFeatures"></param>
     protected Biome(int seed, IFeatureType[] potentialFeatures) {
+      Id = System.Threading.Interlocked.Increment(ref CurrentMaxBiomeID);
       this.seed = seed;
       this.potentialFeatures = potentialFeatures;
       noise = new FastNoise(seed);

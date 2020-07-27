@@ -1,6 +1,5 @@
 ﻿using Evix.Terrain.Collections;
 using Evix.Terrain.Features;
-using System;
 
 namespace Evix.Terrain.DataGeneration.Biomes {
   public class GrassyPlains : Biome {

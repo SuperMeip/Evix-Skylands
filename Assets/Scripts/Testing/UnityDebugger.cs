@@ -30,13 +30,12 @@ namespace Evix {
     /// </summary>
     public UnityDebugger() {}
     public UnityDebugger(bool isEnabled) {
-      this.debugModeIsEnabled = isEnabled;
+      debugModeIsEnabled = isEnabled;
     }
 
     /// <summary>
     /// Log a debug message
     /// </summary>
-    /// <param name="debugMessage"></param>
     public void log(string debugMessage) {
       if (debugModeIsEnabled) {
         Debug.Log(debugMessage);
@@ -46,7 +45,6 @@ namespace Evix {
     /// <summary>
     /// Log a debug warning
     /// </summary>
-    /// <param name="debugMessage"></param>
     public void logWarning(string debugMessage) {
       if (debugModeIsEnabled) {
         Debug.LogWarning(debugMessage);
@@ -56,7 +54,6 @@ namespace Evix {
     /// <summary>
     /// Log an error. These will log even outside of debug mode
     /// </summary>
-    /// <param name="debugMessage"></param>
     public void logError(string debugMessage) {
       Debug.LogError(debugMessage);
     }
@@ -65,7 +62,7 @@ namespace Evix {
     /// Log an error and throw and exception of the given type with the mesage of the error.
     /// These will work outside of debug mode
     /// </summary>
-    /// <param name="debugMessage"></param>
+    /// <exception cref="ExceptionType">Throws an exception of the provided type</exception>
     public void logAndThrowError<ExceptionType>(string debugMessage) where ExceptionType : System.Exception {
       Debug.LogError(debugMessage);
       throw (ExceptionType)typeof(ExceptionType).GetConstructor(new[] {typeof(string)}).Invoke(new object[] { debugMessage});

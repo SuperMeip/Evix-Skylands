@@ -7,6 +7,11 @@ using UnityEngine;
 namespace Evix.Terrain.DataGeneration.Voronoi {
 	public static class Delaunay {
 
+		/// <summary>
+		/// Epsilon value for floating point comparison
+		/// </summary>
+		const float Epsilon = 0.5f;
+
 		#region Trianglulation
 
 		/// <summary>
@@ -154,13 +159,28 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 					}
 				});
 
-				// close up the remaining incomplete edges to form the shape.
-				foreach (KeyValuePair<Vertex, EdgeVector> incompleteEdgeAndNeededOrigin in incompleEdgesByNeededOriginPoint) {
-					/// if the complete edges dic contains a vector pointing to the start we need
-					if (completeEdges.TryGetValue(incompleteEdgeAndNeededOrigin.Key, out EdgeVector originPointingVector)) {
-						// grab it and set it correctly.
-						incompleteEdgeAndNeededOrigin.Value.setPreviousEdge(originPointingVector, voronoiCell.Id);
-						originPointingVector.setNextEdge(incompleteEdgeAndNeededOrigin.Value, voronoiCell.Id);
+				/// Loop over the still incomplete edges and try to connect them.
+				//  This can take multiple runs through if edges rely on incomplete edges, but shouldn't take more than the sides possible,
+				//// so we use a safety limit for the loop
+				int safetyCount = 10;
+				while (incompleEdgesByNeededOriginPoint.Count > 0 && safetyCount-- > 0) {
+					var itemsToRemove = incompleEdgesByNeededOriginPoint.Where((i) => {
+						// if we find the complete edge we're looking for hook it up and return it for the list to remove.
+						var (incompleteEdgeNeededOrigin, incompleteEdge) = i;
+						if (completeEdges.TryGetValue(incompleteEdgeNeededOrigin, out EdgeVector originPointingVector)) {
+							// grab it and set it correctly.
+							incompleteEdge.setPreviousEdge(originPointingVector, voronoiCell.Id);
+							originPointingVector.setNextEdge(incompleteEdge, voronoiCell.Id);
+							return true;
+						}
+
+						return false;
+					}).ToArray();
+
+					foreach (var (completedEdgeKey, completedEdgeToAdd) in itemsToRemove) {
+						// remove the newly completed edges from the incomplete edge hash to the complete one.
+						incompleEdgesByNeededOriginPoint.Remove(completedEdgeKey);
+						completeEdges[completedEdgeToAdd.pointsTo] = completedEdgeToAdd;
 					}
 				}
 
@@ -168,6 +188,8 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 				if (!voronoiCell.isEmpty && voronoiCell.checkIsComplete()) {
 					voronoiCell.countEdges();
 					voronoiCells[delaunayVertex] = voronoiCell;
+				} else {
+					//World.Debug.log($"Cell #{voronoiCell.Id} failed to be created: {(voronoiCell.isEmpty ? "isEmpty" : "isIncomplete")}");
 				}
 			}
 
@@ -555,11 +577,11 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		/// <param name="c"></param>
 		/// <returns></returns>
 		static Vertex CalculateTriangleCircumcenter(Polygon triangle, Dictionary<Vertex, Dictionary<Vertex, Dictionary<Vertex, Vertex>>> circumcenterCache) {
-			Vertex a = triangle.firstEdge.pointsTo;
-			Vertex b = triangle.firstEdge.nextEdge.pointsTo;
-			Vertex c = triangle.firstEdge.nextEdge.nextEdge.pointsTo;
+			/// Get the triangle's A B and C
+			var (a, (b, (c, _))) = triangle;
 
 			/// first lets check if we already calculated this circumcenter
+			// keep a list of the cached verts of the triangle we haven't found yet.
 			List<Vertex> remainingVerticesToBeFound = new List<Vertex> {
 				a,b,c
 			};
@@ -586,13 +608,71 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 				}
 			}
 
-			float ma = (b.y - a.y) / (b.x - a.x);
-			float mb = (c.y - b.y) / (c.x - b.x);
+			/// get the slopes. We need to make sure the 2 slopes we pick are not infinite or 0
+			// Slope of AB
+			float ab_slope = (b.y - a.y) / (b.x - a.x);
+			// Slope of BC
+			float bc_slope = (c.y - b.y) / (c.x - b.x);
 
-			float centerX = (ma * mb * (a.y - c.y) + mb * (a.x + b.x) - ma * (b.x + c.x)) / (2 * (mb - ma));
-			float centerY = (-1f / ma) * (centerX - (a.x + b.x) / 2f) + (a.y + b.y) / 2f;
+			// if we detect one of the slopes we calculated is -infinity or 0 (is strait on the grid), rotate some points and try again
+			if (ab_slope == 0 || float.IsInfinity(ab_slope)) {
+				Vertex temp = a;
+				a = c;
+				c = temp;
 
-			Vertex circumcenter = (centerX, centerY);
+				// Slope of AB
+				ab_slope = (b.y - a.y) / (b.x - a.x);
+				// Slope of BC
+				bc_slope = (c.y - b.y) / (c.x - b.x);
+			}
+
+			//// Note: it's rare but sometimes we only need to swap once.
+			if (bc_slope == 0 || float.IsInfinity(bc_slope)) {
+				Vertex temp = b;
+				b = a;
+				a = temp;
+
+				// Slope of AB
+				ab_slope = (b.y - a.y) / (b.x - a.x);
+				// Slope of BC
+				bc_slope = (c.y - b.y) / (c.x - b.x);
+			}
+
+			/// get the circumcenter from the slopes
+			Vertex circumcenter;
+
+			/// if one of the slopes is still strait then we probably have a rigth triangle aligned with the grid
+			//    This is true if two of the slopes out of 3 are strait lines.
+			bool ab_slope_isStrait = ab_slope == 0 || float.IsInfinity(ab_slope);
+			bool bc_slope_isStrait = bc_slope == 0 || float.IsInfinity(bc_slope);
+			if (ab_slope_isStrait || bc_slope_isStrait) {
+				// we need the hypotenuse if this is a right triangle angled with the grid:
+				(Vertex a, Vertex b) hypotenuse;
+
+				// if the two slopes we have now are not both strait, calculate the third slope
+				if (!(ab_slope_isStrait && bc_slope_isStrait)) {
+					float ca_slope = (c.y - a.y) / (c.x - a.x);
+					// if the third slope isn't strait, something is up; we only have one strait slope and this isn't a right triangle aligned to grid.
+					if (ca_slope != 0 && !float.IsInfinity(ca_slope)) {
+						World.Debug.logAndThrowError<ArgumentOutOfRangeException>($"Danger! Calculated circumcenter divided by zero");
+					}
+
+					// the hypotenuse is the line that had a slope that wasn't strait
+					hypotenuse = ab_slope_isStrait ? (b, c) : (a, b);
+					// if both ab and bc are strait lines, ac must be the hypotenuse
+				} else {
+					hypotenuse = (a, c);
+				}
+
+				// The circumcenter is the midpoint of the hypotenuse
+				circumcenter = ((hypotenuse.a.x + hypotenuse.b.x) / 2, (hypotenuse.a.y + hypotenuse.b.y) / 2);
+			// if the slopes are both fine, use them to calculare the center
+			} else {
+				float centerX = (ab_slope * bc_slope * (a.y - c.y) + bc_slope * (a.x + b.x) - ab_slope * (b.x + c.x)) / (2 * (bc_slope - ab_slope));
+				float centerY = (-1f / ab_slope) * (centerX - (a.x + b.x) / 2f) + (a.y + b.y) / 2f;
+
+				circumcenter = (centerX, centerY);
+			}
 
 			/// Add the value to the cache
 			if (!circumcenterCache.ContainsKey(a)) {
@@ -603,8 +683,38 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 				circumcenterCache[a][b][c] = circumcenter;
 			}
 
-
 			return circumcenter;
+		}
+
+		/// <summary>
+		/// Check if it's a right triangle, and get the hypotonose if it is
+		/// </summary>
+		/// <param name="triangle"></param>
+		/// <param name="hypotenuse"></param>
+		/// <returns></returns>
+		static bool IsRightTriangle(Polygon triangle, out (Vertex a, Vertex b) hypotenuse) {
+			/// Get the triangle's 3 verticies
+			var (e, (f, (g, _))) = triangle;
+
+			// calculate the side lengths
+			(float length, Vertex a, Vertex b)[] sides = new (float, Vertex, Vertex)[] {
+				(Vector2.Distance(e.position, f.position), e , f),
+				(Vector2.Distance(f.position, g.position), f , g),
+				(Vector2.Distance(g.position, e.position), g , e)
+			};
+
+			// sort them, smallest first
+			sides = sides.OrderBy(side => side.length).ToArray();
+
+			// the longest side is the hypotenuse if it's a right triangle.
+			hypotenuse = (sides[2].a, sides[2].b);
+
+			/// A squared + b squared = c squared on a right triangle.
+			double a_squared = Math.Pow(sides[0].length, 2);
+			double b_squared = Math.Pow(sides[1].length, 2);
+			double c_squared = Math.Pow(sides[2].length, 2);
+
+			return Math.Abs(a_squared + b_squared - c_squared) < Epsilon;
 		}
 
 		#endregion
