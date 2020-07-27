@@ -108,13 +108,8 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 			/// We create a voronoi polygon cell for every delanuay vertex.
 			foreach (Vertex delaunayVertex in delaunayData.vertices) {
-				/// we need at least 3 edges to make a shape
 				// make the new cell
 				Polygon voronoiCell = new Polygon(delaunayVertex);
-
-				// TODO: try moving this logic outside each individual vertex. Go shape by shape instead and build shapes using the incompleteEdgesByNeeded dic by what vertex the outwardVector points toward.
-				//// anywhere there's a vector pointing toward a point, with triangles on both sides of the edge, make a voronoi edge, and index it by vertex is pointsTo and by what it needs for it's origin edge  
-				// first see why these shapes arn't completing. And see if we still have double the out to in vectors on verticies
 
 				// these are edges we create that then need to be hooked up to an edge pointing at their start point. (as prev)
 				//    indexed by the needed start point, or the would be edge.prevEdge.pointsTo
@@ -125,7 +120,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 
 				// we'll use outpointing vectors to check each line once, as each vector radiating
 				//    from this point should have both sides. (in and outgoing) for the multuple triangles.
-				//    TODO: hopefully keeping them all outgoing will keep them all facing the same way
 				delaunayVertex.forEachOutgoingVector((outgoingVector, polygonID) => {
 					Polygon forwardTriangle = outgoingVector.parentShape;
 					Polygon behindTriangle = outgoingVector.oppositeEdge?.parentShape;

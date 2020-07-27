@@ -269,8 +269,8 @@ namespace Evix.Terrain.Collections {
     /// <summary>
     /// Try to add a feature to this chunk.
     /// Adds it to the buffer if not all criteria are met
-    /// TODO: chunk needs to check feature it's own buffer after unlocking at some point
     /// </summary>
+    /// TODO: check chunk feature right before generating the mesh for the chunk.
     public void addFeature(VoxelFeature feature) {
       // if this is higher than loaded resolution and we can get a lock, just bake it quick now.
       if (currentResolution >= Resolution.Loaded 
