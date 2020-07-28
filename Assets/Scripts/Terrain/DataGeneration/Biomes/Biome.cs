@@ -50,5 +50,14 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     /// <param name="feature"></param>
     /// <returns></returns>
     public abstract byte generateAt(Coordinate worldLocation, Coordinate chunkID, out ITerrainFeature feature);
+
+    /// <summary>
+    /// If this biome is of the given type
+    /// </summary>
+    /// <param name="biomeType"></param>
+    /// <returns></returns>
+    public bool isOfType(IBiomeType biomeType) {
+      return GetType().Name == biomeType.type;
+    }
   }
 }

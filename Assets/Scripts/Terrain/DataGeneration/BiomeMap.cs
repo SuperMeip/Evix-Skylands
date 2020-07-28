@@ -57,29 +57,58 @@ namespace Evix.Terrain.DataGeneration {
     /// <param name="seed"></param>
     /// <param name="biomeTypes"></param>
     protected BiomeMap(Level level, IBiomeType[] biomeTypes) {
-      /// Generate the biome map using a voronoi diagram with a random set of points
-      Vector2[] randomBiomeCenters = new Vector2[0];
-      Dictionary<Vertex, Polygon> voronoiCells = Delaunay.GenerateVoronoiCells(Delaunay.GenerateTriangulation(randomBiomeCenters));
-      foreach(Vertex voronoiCenter in voronoiCells.Keys) {
-        biomeVoronoiCenters[voronoiCenter] = getBiomeType(voronoiCenter.position);
-      }
-
+      /// init randomness
       seed = level.seed;
       validBiomeTypes = biomeTypes;
       noise = new FastNoise(seed);
+
+      /// Generate the biome map using a voronoi diagram with a random set of points
+      Vector2[] randomBiomeCenters = new Vector2[0];
+      Dictionary<Vertex, Polygon> voronoiCells = Delaunay.GenerateVoronoiCells(
+        Delaunay.GenerateTriangulation(randomBiomeCenters)
+      );
+
+      // generate the biomes from the voronoi cells.
+      foreach (Polygon voronoiCell in voronoiCells.Values) {
+        assignBiomeToVoronoiCell(voronoiCell);
+      }
     }
 
     /// <summary>
-    /// Get the biome type for the given location on this biomemap
+    /// Assign a biome to a voronoi cell
     /// </summary>
-    /// <param name="biomeVoronoiCenter"></param>
+    /// <param name="voronoiCell"></param>
+    void assignBiomeToVoronoiCell(Polygon voronoiCell) {
+      IBiomeType newCellBiomeType = getBiomeType(voronoiCell.center);
+
+      /// check if an existing neighboring biome of the same type should just extend into this one
+      voronoiCell.center.forEachOutgoingVector((delaunayEdge, _) => {
+        if (biomeVoronoiCenters.TryGetValue(delaunayEdge.pointsTo, out Biome neighboringCellBiome)
+          && neighboringCellBiome.isOfType(newCellBiomeType)
+        ) {
+          // Set the biome to use and end the loop
+          biomeVoronoiCenters[voronoiCell.center] = neighboringCellBiome;
+          return;
+        }
+      });
+
+      /// if we don't have a neighbor of the same type, make a new one.
+      Biome newBiome = newCellBiomeType.make(seed);
+      biomeVoronoiCenters[voronoiCell.center] = newBiome;
+      biomes[newBiome.Id] = newBiome;
+    }
+
+    /// <summary>
+    /// Get the biome type for the given world block location on this biomemap
+    /// </summary>
+    /// <param name="worldBlockLocation"></param>
     /// <returns></returns>
-    Biome getBiomeType(Vector2 biomeVoronoiCenter) {
+    IBiomeType getBiomeType(Coordinate worldBlockLocation) {
       return getBiomeTypeFor(
-        biomeVoronoiCenter,
-        getSurfaceHeight(biomeVoronoiCenter),
-        getTemperatureMapValue(biomeVoronoiCenter),
-        getMoistureMapValue(biomeVoronoiCenter)
+        worldBlockLocation,
+        getBaseSurfaceHeight(worldBlockLocation),
+        getTemperatureMapValue(worldBlockLocation),
+        getMoistureMapValue(worldBlockLocation)
       );
     }
 
@@ -87,7 +116,7 @@ namespace Evix.Terrain.DataGeneration {
     /// The formula to get a biome type to generate given the height temp and humidity of the 2D biome map.
     /// </summary>
     /// <returns></returns>
-    protected abstract Biome getBiomeTypeFor(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
+    protected abstract IBiomeType getBiomeTypeFor(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity);
 
     /// <summary>
     /// Get the biome to use for the given chunk
@@ -120,15 +149,15 @@ namespace Evix.Terrain.DataGeneration {
     /// </summary>
     /// <param name="worldLocation"></param>
     /// <returns></returns>
-    protected virtual int getSurfaceHeight(Coordinate worldLocation) {
-      return (int)getHeightMapValue(worldLocation)
+    protected virtual int getBaseSurfaceHeight(Coordinate worldLocation) {
+      return (int)getBaseHeightMapValue(worldLocation)
         .scale(World.SeaLevel + maxHeightAboveSeaLevel, World.SeaLevel - maxDepthBelowSeaLevel);
     }
 
     /// <summary>
     /// Get the hight map value for the given world location (2D)
     /// </summary>
-    protected virtual float getHeightMapValue(Coordinate worldLocation) {
+    protected virtual float getBaseHeightMapValue(Coordinate worldLocation) {
       return (int)noise.GetPerlin(worldLocation.x, worldLocation.z);
     }
   }
