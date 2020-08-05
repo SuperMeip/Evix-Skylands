@@ -62,7 +62,7 @@ namespace Evix.Terrain.Resolution {
         job = new SetChunkInvisibleJob(adjustment);
       }
 
-      return new ApetureJobHandle(job, onJobComplete, true);
+      return new ApetureJobHandle(job, onJobComplete);
     }
 
     #endregion

@@ -29,7 +29,7 @@ namespace Evix.Tools {
     /// <summary>
     /// Seconds to wait between updating the selected voxel
     /// </summary>
-    float selectedVoxelUpdateTimer = 0;
+    float selectedVoxelUpdateTimer = 50;
 
     /// <summary>
     /// The voxel type to set when adding a new voxel

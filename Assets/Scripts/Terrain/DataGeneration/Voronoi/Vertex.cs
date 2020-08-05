@@ -127,6 +127,14 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
       return vertex.position;
     }
 
+    /// <summary>
+    /// Turn a vector2 into a Vertex.
+    /// </summary>
+    /// <param name="coordinates"></param>
+    public static implicit operator Vector3(Vertex vertex) {
+      return new Vector3(vertex.x, 0, vertex.y);
+    }
+
     #endregion
 
     #region Get and Set Members

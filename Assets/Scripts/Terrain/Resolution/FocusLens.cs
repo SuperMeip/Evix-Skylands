@@ -111,10 +111,11 @@ namespace Evix.Terrain.Resolution {
     #region Apeture Loop Functions
 
     /// <summary>
-    /// Update each apeture whenever the focus this lens is focused on moves
+    /// Update each apeture whenever the focus this lens is focused on moves, in reverse priority
     /// </summary>
     public void updateAdjustmentsForFocusMovement() {
-      foreach (IChunkResolutionAperture aperture in apeturesByPriority) {
+      for (int index = apeturesByPriority.Length - 1; index >= 0; index--) {
+        IChunkResolutionAperture aperture = apeturesByPriority[index];
         World.Debug.Timer.start("updateAdjustmentsForFocusLocationChange");
         aperture.updateAdjustmentsForFocusLocationChange(focus);
         World.Debug.Timer.record("updateAdjustmentsForFocusLocationChange", aperture.GetType().Name);

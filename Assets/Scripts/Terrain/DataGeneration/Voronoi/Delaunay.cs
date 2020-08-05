@@ -33,9 +33,9 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 			/// Step 1. Create the super triangle to surround the area.
 			// The super triangle should be bigger than any other thing, and contain all points by a large margin.
 			Polygon superTriangle = new Polygon(EdgeVector.MakedLinkedShape(new List<EdgeVector> {
-				new EdgeVector((-2000000, 2000000)),
-				new EdgeVector((2000000, 2000000)),
-				new EdgeVector((0, -2500000))
+				new EdgeVector((-20000000, 20000000)),
+				new EdgeVector((20000000, 20000000)),
+				new EdgeVector((0, -25000000))
 			}));
 
 			delaunayData.triangles.Add(superTriangle.Id, superTriangle);
@@ -193,6 +193,68 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
 		#endregion
 
 		#region Helper Functions
+
+		/// <summary>
+		/// Get if the line intersects the bounds of the given rectangle.
+		/// </summary>
+		/// <param name="rectangleBounds">min inclusive, max exclusive</param>
+		/// <param name="line"></param>
+		/// <returns></returns>
+		public static bool LineIntersectsRectangle((Coordinate min, Coordinate max) rectangleBounds, (Coordinate a, Coordinate b) line) {
+			/// Return true if all the points are in the square
+			if (line.a.isWithin(rectangleBounds) && line.b.isWithin(rectangleBounds)) {
+				return true;
+			}
+
+			// if both points are beyond the square in the same direction, return false.
+			if ((line.a.x >= rectangleBounds.max.x 
+					&& line.b.x >= rectangleBounds.max.x)
+				|| (line.a.y >= rectangleBounds.max.y
+					&& line.b.y >= rectangleBounds.max.y)
+				|| (line.a.x < rectangleBounds.min.x 
+					&& line.b.x < rectangleBounds.min.x)
+				|| (line.a.y < rectangleBounds.min.y
+					&& line.b.y < -rectangleBounds.min.y)
+			) {
+				return false;
+			}
+
+			/// Return true if one side intersects
+			Coordinate a = (rectangleBounds.min.x, rectangleBounds.max.y);
+			Coordinate b = rectangleBounds.max;
+			Coordinate c = (rectangleBounds.min.x, rectangleBounds.min.y);
+			Coordinate d = rectangleBounds.min;
+
+			(Vertex a, Vertex b)[] squareSides = new (Vertex a, Vertex b)[] {
+				(a, b),
+				(b, c),
+				(c, d),
+				(d, a)
+			};
+
+			foreach((Vertex a, Vertex b) squareSide in squareSides) {
+				if (LinesIntersect(squareSide, line)) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Check if two lines intersect
+		/// </summary>
+		public static bool LinesIntersect((Vertex a, Vertex b) lineA, (Vertex a, Vertex b) lineB) {
+			float s1_x = lineA.b.x - lineA.a.x;
+			float s1_y = lineA.b.y - lineA.a.y;
+			float s2_x = lineB.b.x - lineB.a.x;
+			float s2_y = lineB.b.y - lineB.a.y;
+
+			float s = (-s1_y * (lineA.a.x - lineB.a.x) + s1_x * (lineA.a.y - lineB.a.y)) / (-s2_x * s1_y + s1_x * s2_y);
+			float t = (s2_x * (lineA.a.y - lineB.a.y) - s2_y * (lineA.a.x - lineB.a.x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+			return s >= 0 && s <= 1 && t >= 0 && t <= 1;
+		}
 
 		static Polygon TriangulationWalk(Vertex point, Dictionary<int, Polygon> triangles) {
 			/// declare return

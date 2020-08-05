@@ -65,6 +65,18 @@ namespace Evix {
     }
 
     /// <summary>
+    /// Create a 3d coordinate
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="z"></param>
+    public Coordinate(int x, int z) {
+      this.x = x;
+      y = 0;
+      this.z = z;
+    }
+
+    /// <summary>
     /// Make a coordinate from a vec2
     /// </summary>
     /// <param name="vector2"></param>
@@ -133,6 +145,14 @@ namespace Evix {
     /// <param name="coordinate"></param>
     public static implicit operator Coordinate(Vertex vertex) {
       return new Coordinate(vertex.position);
+    }
+
+    /// <summary>
+    /// Make a coord from (x,z)
+    /// </summary>
+    /// <param name="location"></param>
+    public static implicit operator Coordinate((int, int) location) {
+      return new Coordinate(location.Item1, location.Item2);
     }
 
     #endregion
@@ -467,6 +487,14 @@ namespace Evix {
     /// <summary>
     /// Checks if this coordinate is within a set, dictated by boundaries. (inclusive, and exclusive)
     /// </summary>
+    internal bool isWithin((Coordinate minInclusive, Coordinate maxExclusive) bounds) {
+      return isWithin(bounds.minInclusive, bounds.maxExclusive);
+    }
+
+
+    /// <summary>
+    /// Checks if this coordinate is within a set, dictated by boundaries. (inclusive, and exclusive)
+    /// </summary>
     /// <param name="start">The starting location to check if the point is within, inclusive</param>
     /// <param name="bounds">The outer boundary to check for point inclusion. Exclusive</param>
     /// <returns></returns>
@@ -600,6 +628,10 @@ namespace Evix {
           action(coordinate);
         }
       });
+    }
+
+    public static void contains(this (Coordinate min, Coordinate max) bounds) {
+
     }
 
     /// <summary>

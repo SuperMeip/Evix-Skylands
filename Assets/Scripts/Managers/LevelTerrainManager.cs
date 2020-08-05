@@ -16,6 +16,11 @@ namespace Evix.Managers {
   public class LevelTerrainManager : MonoBehaviour, IObserver {
 
     /// <summary>
+    /// Items to check in each queue per frame
+    /// </summary>
+    const int QueueItemsToCheckPerGameLoop = 30;
+
+    /// <summary>
     /// The scene to use as the basis for a chunk
     /// </summary>
     public GameObject ChunkPrefab;
@@ -156,76 +161,80 @@ namespace Evix.Managers {
         return;
       }
 
-      /// try to assign newly mehsed chunks that are waiting on controllers, if we run out.
-      if (chunksWaitingForAFreeController.tryDequeue(out KeyValuePair<float, ChunkResolutionAperture.Adjustment> chunkMeshWaitingForController)) {
-        if (tryToAssignMeshedChunkToController(chunkMeshWaitingForController.Value.chunkID, out ChunkController assingedController) && assingedController != null) {
-          chunksToMesh.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), assingedController);
+      /// Deal with X items from each queue each frame
+      int queueItemsPerLoopCounter = QueueItemsToCheckPerGameLoop;
+      while (queueItemsPerLoopCounter-- >= 0) {
+        /// try to assign newly mehsed chunks that are waiting on controllers, if we run out.
+        if (chunksWaitingForAFreeController.tryDequeue(out KeyValuePair<float, ChunkResolutionAperture.Adjustment> chunkMeshWaitingForController)) {
+          if (tryToAssignMeshedChunkToController(chunkMeshWaitingForController.Value.chunkID, out ChunkController assingedController) && assingedController != null) {
+            chunksToMesh.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), assingedController);
 #if DEBUG
-          level.getChunk(chunkMeshWaitingForController.Value.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
+            level.getChunk(chunkMeshWaitingForController.Value.chunkID).recordEvent($"added to chunksToMesh Level Manager queue");
 #endif
-        } else {
-          chunksWaitingForAFreeController.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), chunkMeshWaitingForController.Value);
+          } else {
+            chunksWaitingForAFreeController.enqueue(level.getPriorityForAdjustment(chunkMeshWaitingForController.Value), chunkMeshWaitingForController.Value);
+          }
         }
-      }
 
-      /// mesh the chunk that has a controller waiting
-      if (chunksToMesh.tryDequeue(out KeyValuePair<float, ChunkController> meshedChunkLocation)) {
-        if (meshedChunkLocation.Value.isActive) {
-          meshedChunkLocation.Value.meshChunkWithCurrentData();
+        /// mesh the chunk that has a controller waiting
+        if (chunksToMesh.tryDequeue(out KeyValuePair<float, ChunkController> meshedChunkLocation)) {
+          if (meshedChunkLocation.Value.isActive) {
+            meshedChunkLocation.Value.meshChunkWithCurrentData();
 #if DEBUG
-        } else {
-          meshedChunkLocation.Value.recordEvent($"dropped from chunksToMesh queue, no longer set to any chunk");
+          } else {
+            meshedChunkLocation.Value.recordEvent($"dropped from chunksToMesh queue, no longer set to any chunk");
 #endif
+          }
         }
-      }
 
-      /// go through the chunk activation queue and activate chunks
-      if (chunksToActivate.tryDequeue(out KeyValuePair<float, Coordinate> activatedChunkLocation)) {
-        // if the chunk doesn't have a meshed and baked controller yet, we can't activate it, so wait.
-        if (tryToGetAssignedChunkController(activatedChunkLocation.Value, out ChunkController assignedController)) {
-          // is active and the mesh is baked
-          if (assignedController.isActive && assignedController.isMeshed && assignedController.checkColliderIsBaked()) {
-            assignedController.setVisible();
+        /// go through the chunk activation queue and activate chunks
+        if (chunksToActivate.tryDequeue(out KeyValuePair<float, Coordinate> activatedChunkLocation)) {
+          // if the chunk doesn't have a meshed and baked controller yet, we can't activate it, so wait.
+          if (tryToGetAssignedChunkController(activatedChunkLocation.Value, out ChunkController assignedController)) {
+            // is active and the mesh is baked
+            if (assignedController.isActive && assignedController.isMeshed && assignedController.checkColliderIsBaked()) {
+              assignedController.setVisible();
+            } else {
+              chunksToActivate.enqueue(activatedChunkLocation);
+            }
+          } else if (chunksWaitingForAFreeController.Count == 0) {
+            Chunk chunk = level.getChunk(activatedChunkLocation.Value);
+            if (!chunk.meshIsEmpty) {
+              chunksToActivate.enqueue(activatedChunkLocation);
+            } else {
+              // set the chunk visible as, it is visible it just has no mesh
+#if DEBUG
+              chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
+#endif
+              chunk.setVisible();
+              chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
+            }
           } else {
             chunksToActivate.enqueue(activatedChunkLocation);
           }
-        } else if (chunksWaitingForAFreeController.Count == 0) {
-          Chunk chunk = level.getChunk(activatedChunkLocation.Value);
-          if (!chunk.meshIsEmpty) {
-            chunksToActivate.enqueue(activatedChunkLocation);
+        }
+
+        /// go through the de-activation queue
+        if (chunksToDeactivate.tryDequeue(out KeyValuePair<float, Coordinate> deactivatedChunkLocation)) {
+          if (tryToGetAssignedChunkController(deactivatedChunkLocation.Value, out ChunkController assignedController)) {
+            assignedController.setVisible(false);
+            // if there's no controller found then it was never set active and we can just drop it too
           } else {
-            // set the chunk visible as, it is visible it just has no mesh
+            Chunk chunkToSetInvisible = level.getChunk(deactivatedChunkLocation.Value);
 #if DEBUG
-            chunk.recordEvent($"Chunk dropped from chunksToActivate queue for having an empty mesh");
+            chunkToSetInvisible.recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
 #endif
-            chunk.setVisible();
-            chunk.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.InFocus));
+            chunkToSetInvisible.setVisible(false);
+            chunkToSetInvisible.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus));
           }
-        } else {
-          chunksToActivate.enqueue(activatedChunkLocation);
         }
-      }
 
-      /// go through the de-activation queue
-      if (chunksToDeactivate.tryDequeue(out KeyValuePair<float, Coordinate> deactivatedChunkLocation)) {
-        if (tryToGetAssignedChunkController(deactivatedChunkLocation.Value, out ChunkController assignedController)) {
-          assignedController.setVisible(false);
-          // if there's no controller found then it was never set active and we can just drop it too
-        } else {
-          Chunk chunkToSetInvisible = level.getChunk(deactivatedChunkLocation.Value);
-#if DEBUG
-          chunkToSetInvisible.recordEvent($"chunk dropped from chunksToDeactivate for never making it to active");
-#endif
-          chunkToSetInvisible.setVisible(false);
-          chunkToSetInvisible.unlock((Chunk.Resolution.Visible, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus));
+        /// try to remove meshes for the given chunk and reset it's mesh data
+        if (chunksToDemesh.tryDequeue(out KeyValuePair<float, ChunkController> chunkNodeToDemesh)) {
+          chunkNodeToDemesh.Value.clearAssignedChunkData();
+          usedChunkControllers.TryRemove(chunkNodeToDemesh.Value.chunkLocation, out _);
+          freeChunkControllerPool.Enqueue(chunkNodeToDemesh.Value);
         }
-      }
-
-      /// try to remove meshes for the given chunk and reset it's mesh data
-      if (chunksToDemesh.tryDequeue(out KeyValuePair<float, ChunkController> chunkNodeToDemesh)) {
-        chunkNodeToDemesh.Value.clearAssignedChunkData();
-        usedChunkControllers.TryRemove(chunkNodeToDemesh.Value.chunkLocation, out _);
-        freeChunkControllerPool.Enqueue(chunkNodeToDemesh.Value);
       }
     }
 

@@ -122,9 +122,6 @@ namespace Evix.Terrain.DataGeneration.Voronoi {
     /// <param name="action"></param>
     public void forEachEdge(Action<EdgeVector> action) {
       EdgeVector currentEdge = firstEdge;
-      if (currentEdge == null) {
-        var x = 1;
-      }
       do {
         action(currentEdge);
         currentEdge = currentEdge.nextEdge;

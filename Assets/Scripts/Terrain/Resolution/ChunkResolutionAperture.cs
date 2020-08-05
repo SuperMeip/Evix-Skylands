@@ -60,7 +60,13 @@ namespace Evix.Terrain.Resolution {
     /// <summary>
     /// The chunk bounds this aperture is managing
     /// </summary>
-    Coordinate[] managedChunkBounds
+#if DEBUG
+    public
+#endif
+      Coordinate[] managedChunkBounds
+#if DEBUG
+      { get; private set; }
+#endif
       = new Coordinate[2];
 
     #region constructors
@@ -232,13 +238,14 @@ namespace Evix.Terrain.Resolution {
         lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
 #endif
       });
-      /// sort them by distance to the player
-      chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, newFocalPoint));
 
-      /// run adjustments
-      foreach(Adjustment adjustment in chunkAdjustments) {
+      /// sort them by distance to the player then run adjustments
+      foreach(Adjustment adjustment in chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, newFocalPoint))) {
         if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
           jobHandle.schedule();
+#if DEBUG
+          lens.incrementRunningJobCount(adjustment.resolution);
+#endif
         }
       }
 
@@ -254,31 +261,24 @@ namespace Evix.Terrain.Resolution {
       Coordinate[] oldManagedChunkBounds = managedChunkBounds;
       Coordinate[] newManagedChunkBounds = getManagedChunkBounds(focus);
 
-      /// just get the new in focus chunks for the whole managed area
-      newManagedChunkBounds[0].until(newManagedChunkBounds[1], inFocusChunkLocation => {
-        chunkAdjustments.Add(new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id));
-#if DEBUG
-        lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
-#endif
-      });
-
-      /// sort them by distance to the player
-      chunkAdjustments.OrderBy(adjustment => getPriority(adjustment, focus));
-
       /// update the new managed bounds
       managedChunkBounds = newManagedChunkBounds;
 
-      /// run adjustments
-      foreach(Adjustment adjustment in chunkAdjustments) {
+      /// try to get jobs for the new in focus chunks for the whole managed area
+      newManagedChunkBounds[0].until(newManagedChunkBounds[1], inFocusChunkLocation => {
+        Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.InFocus, resolution, focus.id);
         if (tryToGetAdjustmentJobHandle(adjustment, out ApetureJobHandle jobHandle)) {
           jobHandle.schedule();
 #if DEBUG
           lens.incrementRunningJobCount(adjustment.resolution);
 #endif
         }
-      }
+#if DEBUG
+        lens.level.getChunk(inFocusChunkLocation).recordEvent($"Attempting to get apeture job for {(resolution, FocusAdjustmentType.InFocus)}");
+#endif
+      });
 
-      /// see if we should get newly out of focus chunks
+      /// see if we should spin up jobs for any newly out of focus chunks
       oldManagedChunkBounds.forEachPointNotWithin(newManagedChunkBounds, inFocusChunkLocation => {
         Adjustment adjustment = new Adjustment(inFocusChunkLocation, FocusAdjustmentType.OutOfFocus, resolution, focus.id);
 #if DEBUG

@@ -2,6 +2,7 @@ using Evix.Events;
 using Evix.Managers;
 using Evix.Terrain.Collections;
 using Evix.Terrain.DataGeneration;
+using Evix.Terrain.DataGeneration.Maps;
 using Evix.Terrain.Resolution;
 using System;
 using System.Collections.Generic;
@@ -22,12 +23,20 @@ namespace Evix {
 		/// <summary>
 		/// The name of the level
 		/// </summary>
-		public string name = "No Man's Land";
+		public string name {
+			get;
+			private set;
+		} = "No Man's Land";
 
 		/// <summary>
 		/// The name of the level
 		/// </summary>
 		public readonly string legalFileSaveName;
+
+		/// <summary>
+		/// The biome map this level uses to generate chunks
+		/// </summary>
+		public readonly BiomeMap biomeMap;
 
 		/// <summary>
 		/// The collection of chunks
@@ -64,6 +73,7 @@ namespace Evix {
 			this.name = name == "" ? this.name : name;
 			legalFileSaveName = LevelDAO.IllegalCharactersForFileName.Replace(this.name, "");
  			this.chunkBounds = chunkBounds;
+			biomeMap = new TestPlainIslandMap(this);
 		}
 
 		#endregion
@@ -178,8 +188,27 @@ namespace Evix {
 		/// </summary>
 		/// <param name="focus"></param>
 		/// <returns></returns>
-		internal IFocusLens getLens(ILevelFocus focus) {
+#if DEBUG
+		public
+#endif
+		IFocusLens getLens(ILevelFocus focus) {
 			return focalLenses[focus];
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="v"></param>
+		/// <returns></returns>
+#if DEBUG
+		public
+#endif
+		ILevelFocus getFocusByID(int focusID) {
+			if (fociByID.TryGetValue(focusID, out ILevelFocus focus)) {
+				return focus;
+			}
+
+			return null;
 		}
 
 		#endregion

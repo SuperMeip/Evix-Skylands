@@ -4,6 +4,7 @@ namespace Evix.Terrain.DataGeneration.Biomes {
 
   /// <summary>
   /// Represents a generator for a type of biome.
+  /// TODO: this should take a constructor object that contains the settings for different biome types
   /// </summary>
   public class BiomeType<TypeOfBiome>
     : IBiomeType
@@ -12,13 +13,21 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     /// <summary>
     /// By default we return just the type name
     /// </summary>
-    public string name { 
-      get => name == "" 
-        ? typeof(TypeOfBiome).Name 
+    public string name {
+      get => name == ""
+        ? typeof(TypeOfBiome).Name
         : name;
       protected set {
         name = value;
       }
+    }
+
+    /// <summary>
+    /// The settings for this biome type
+    /// Used to create multple biomes of the same type with different settings
+    /// </summary>
+    public IBiomeSettings settings {
+      get;
     }
 
     /// <summary>
@@ -29,13 +38,29 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     }
 
     /// <summary>
+    /// Make a new type of biome with the given settings
+    /// </summary>
+    /// <param name="settings"></param>
+    public BiomeType(IBiomeSettings settings) {
+      this.settings = settings;
+    }
+
+    /// <summary>
+    /// Make a new type of biome with no settings
+    /// </summary>
+    /// <param name="settings"></param>
+    public BiomeType() {
+      settings = null;
+    }
+
+    /// <summary>
     /// Make a new biome of the type this BiomeType represents
     /// </summary>
     /// <returns></returns>
     public virtual Biome make(int seed) {
       return (Biome)typeof(TypeOfBiome)
-        .GetConstructor(new Type[] { typeof(int) })
-        .Invoke(new object[] {seed });
+        .GetConstructor(new Type[] { typeof(int), settings.GetType() })
+        .Invoke(new object[] { seed, settings });
     }
 
     /// <summary>
@@ -44,7 +69,8 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     /// <param name="other"></param>
     /// <returns></returns>
     public bool Equals(IBiomeType other) {
-      return name == other.name;
+      return name == other.name 
+        && settings.Equals(other.settings);
     }
   }
 }

@@ -17,6 +17,12 @@ public class TestChunkCursor : MonoBehaviour {
 
 [CustomEditor(typeof(TestChunkCursor))]
 class FocusCustomInspoector : Editor {
+
+  /// <summary>
+  /// Last X mesages to get from history
+  /// </summary>
+  int chunkHistoryItemsToGet = 0;
+
   public override void OnInspectorGUI() {
     /// Just info about the chunk
     EditorGUILayout.LabelField("Chunk Info:", "-----");
@@ -25,9 +31,7 @@ class FocusCustomInspoector : Editor {
     EditorGUILayout.Vector3Field("Chunk ID", Chunk.IDFromWorldLocation(cursor.transform.position));
     EditorGUI.EndDisabledGroup();
 
-    if (GUILayout.Button("Print Chunk History Log")) {
-      LevelDataTester.PrintChunkDataRecords(Chunk.IDFromWorldLocation(cursor.transform.position));
-    }
+    chunkHistoryItemsToGet = LevelDataTester.InspectorDrawChunkHistoryGUIButton(Chunk.IDFromWorldLocation(cursor.transform.position), chunkHistoryItemsToGet);
     DrawDefaultInspector();
   }
 }

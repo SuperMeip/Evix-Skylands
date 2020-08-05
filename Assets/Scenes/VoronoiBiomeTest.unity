@@ -340,6 +340,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isEnabled: 1
+  showDelaunayDiagam: 1
   seed: 1306
   mapRadius: 1000
   numberOfPoints: 50

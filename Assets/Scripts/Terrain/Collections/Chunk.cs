@@ -218,20 +218,25 @@ namespace Evix.Terrain.Collections {
     /// <param name="aperture"></param>
     /// <returns></returns>
     public bool tryToLock((Resolution resolution, ChunkResolutionAperture.FocusAdjustmentType focusAdjustmentType) adjustmentLockType) {
-      if (isLockedForWork) {
 #if DEBUG
-        string warning = $"Attempt to lock chunk for: {adjustmentLockType}, failed, already locked for: {this.adjustmentLockType}";
-        World.Debug.logWarning(warning);
-        recordEvent(warning);
+      recordEvent($"Attempting to lock chunk for {adjustmentLockType}");
 #endif
-        return false;
-      } else {
-        isLockedForWork = true;
-        this.adjustmentLockType = adjustmentLockType;
+      lock (this) {
+        if (isLockedForWork) {
 #if DEBUG
-        recordEvent($"locked chunk for {adjustmentLockType}");
+          string warning = $"Attempt to lock chunk for: {adjustmentLockType}, failed, already locked for: {this.adjustmentLockType}";
+          World.Debug.logWarning(warning);
+          recordEvent(warning);
 #endif
-        return true;
+          return false;
+        } else {
+          isLockedForWork = true;
+          this.adjustmentLockType = adjustmentLockType;
+#if DEBUG
+          recordEvent($"locked chunk for {adjustmentLockType}");
+#endif
+          return true;
+        }
       }
     }
 
@@ -270,16 +275,23 @@ namespace Evix.Terrain.Collections {
     /// Try to add a feature to this chunk.
     /// Adds it to the buffer if not all criteria are met
     /// </summary>
-    /// TODO: check chunk feature right before generating the mesh for the chunk.
-    public void addFeature(VoxelFeature feature) {
-      // if this is higher than loaded resolution and we can get a lock, just bake it quick now.
-      if (currentResolution >= Resolution.Loaded 
+    public List<(Coordinate chunkID, VoxelFeature.Fragment voxelFeatureFragment)> addFeature(ITerrainFeature feature, bool tryToBake = true) {
+      // if we already have a lock bake it now,
+      // OR if this is higher than loaded resolution
+      //// AND we can get a lock: just bake it quick now.
+      if (tryToBake
+        && feature is VoxelFeature
+        && currentResolution >= Resolution.Loaded 
         && tryToLock((Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty))
       ) {
-        feature.bake(this);
+        List<(Coordinate chunkID, VoxelFeature.Fragment voxelFeatureFragment)> fragments = (feature as VoxelFeature).bake(this);
         unlock((Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.Dirty));
+
+        return fragments;
       } else {
         featureBuffer.Add(feature);
+
+        return null;
       }
     }
 
@@ -287,6 +299,7 @@ namespace Evix.Terrain.Collections {
     /// Do something for each buffered feature and then clear them.
     /// This will lock the feature buffer
     /// </summary>
+    /// TODO: check chunk feature right before generating the mesh for the chunk.
     public void bakeBufferedVoxelFeatures(Level level, bool clearFeatureBuffer = true) {
       /// can only bake features via an in focus dirty or load lock
       if (isLockedForWork 

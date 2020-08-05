@@ -1,21 +1,21 @@
 ﻿using Evix.Terrain.DataGeneration.Biomes;
-using System;
 
 namespace Evix.Terrain.DataGeneration.Maps {
   class TestPlainIslandMap : BiomeMap {
-    public TestPlainIslandMap(Level level) : base(
+    public TestPlainIslandMap(Level level, int numberOfVoronoiPoints = 250) : base(
       level,
-      new IBiomeType[] {
-        new BiomeType<GrassyPlains>()
-      }
-    ) { } 
+      numberOfVoronoiPoints
+    ) { }
 
-    protected override Biome getBiomeForChunk(Coordinate chunkID) {
-      throw new NotImplementedException();
-    }
-
-    protected override Biome getBiomeTypeFor(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity) {
-      return validBiomeTypes[0].make(seed);
+    /// <summary>
+    /// Get that grassy biome
+    /// </summary>
+    /// <returns></returns>
+    protected override IBiomeType getBiomeTypeFor(Coordinate biomeVoronoiCenter, int surfaceHeight, float temperature, float humidity) {
+      return new BiomeType<GrassyPlains>(new GrassyPlains.PlainSettings() { 
+        maxHillHeightVariance = 10,
+        maxValleyDephVarriance = 10
+      });
     }
   }
 }

@@ -23,6 +23,13 @@ namespace Evix.Terrain.DataGeneration.Biomes {
     }
 
     /// <summary>
+    /// The settings specific to this biome type
+    /// </summary>
+    IBiomeSettings settings {
+      get;
+    }
+
+    /// <summary>
     /// Get an instance of the type of Terrain Feature this feature type represents
     /// </summary>
     /// <param name="root"></param>

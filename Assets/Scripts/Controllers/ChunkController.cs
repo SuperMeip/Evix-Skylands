@@ -4,6 +4,7 @@ using Evix.Terrain.Collections;
 using Evix.Terrain.MeshGeneration;
 using Evix.Terrain.Resolution;
 using Evix.Testing;
+using System;
 using System.Collections.Generic;
 using Unity.Jobs;
 using UnityEditor;
@@ -258,7 +259,13 @@ namespace Evix.Controllers {
     /// Execute the job and bake the mesh
     /// </summary>
     public void Execute() {
-      Physics.BakeMesh(meshID, false);
+      try {
+        Physics.BakeMesh(meshID, false);
+      } catch (Exception e) {
+#if DEBUG
+        World.Debug.logWarning($"MeshID Missing: {meshID}, can't bake mesh; {e.Message}");
+      }
+#endif
     }
   }
 
@@ -272,6 +279,12 @@ namespace Evix.Controllers {
   /// </summary>
   [CustomEditor(typeof(ChunkController))]
   class FocusCustomInspoector : Editor {
+
+    /// <summary>
+    /// Last X mesages to get from history
+    /// </summary>
+    int chunkHistoryItemsToGet = 0;
+
     public override void OnInspectorGUI() {
       /// Just info about the chunk
       EditorGUILayout.LabelField("Chunk Info:", "-----");
@@ -289,9 +302,7 @@ namespace Evix.Controllers {
         );
       }
 
-      if (GUILayout.Button("Print Current Chunk Edit History Log")) {
-        LevelDataTester.PrintChunkDataRecords(chunkController.chunkLocation);
-      }
+      chunkHistoryItemsToGet = LevelDataTester.InspectorDrawChunkHistoryGUIButton(chunkController.chunkLocation, chunkHistoryItemsToGet);
       DrawDefaultInspector();
     }
   }

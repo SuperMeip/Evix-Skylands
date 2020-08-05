@@ -143,12 +143,18 @@ namespace Evix.Managers {
         return;
       }
 
+      // get the active level
       Level level = World.Current.activeLevel;
-      Vector3 worldChunkLocation = ((currentChunkID * Chunk.Diameter) + (Chunk.Diameter / 2)).vec3;
+      if (level == null) {
+        return;
+      }
 
       /// draw the chunk this focus is in
       Gizmos.color = new Color(1.0f, 0.64f, 0.0f);
+      Vector3 worldChunkLocation = ((currentChunkID * Chunk.Diameter) + (Chunk.Diameter / 2)).vec3;
       Gizmos.DrawWireCube(worldChunkLocation, new Vector3(Chunk.Diameter, Chunk.Diameter, Chunk.Diameter));
+
+      // realign the world chunk location with chunk borders
       worldChunkLocation -= new Vector3((Chunk.Diameter / 2), (Chunk.Diameter / 2), (Chunk.Diameter / 2));
 
       /// draw the active chunk area
@@ -192,6 +198,11 @@ namespace Evix.Managers {
   /// </summary>
   [CustomEditor(typeof(FocusManager))]
   class FocusCustomInspoector : Editor {
+
+    /// <summary>
+    /// Last X mesages to get from history
+    /// </summary>
+    int chunkHistoryItemsToGet = 0;
     public override void OnInspectorGUI() {
       EditorGUILayout.LabelField("Focus Info:", "-----");
 
@@ -203,9 +214,7 @@ namespace Evix.Managers {
       EditorGUILayout.Vector3Field("World Voxel Location", focus.worldLocation * World.BlockSize);
       EditorGUI.EndDisabledGroup();
 
-      if (GUILayout.Button("Print Current Chunk Edit History Log")) {
-        LevelDataTester.PrintChunkDataRecords(focus.currentChunkID);
-      }
+      chunkHistoryItemsToGet = LevelDataTester.InspectorDrawChunkHistoryGUIButton(focus.currentChunkID, chunkHistoryItemsToGet);
     }
   }
   #endregion
