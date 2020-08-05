@@ -180,7 +180,9 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="jobHandle"></param>
     public void incrementRunningJobCount(Chunk.Resolution forApertureOfResolution) {
-      runningJobCounts[(int)forApertureOfResolution]++;
+      lock (runningJobCounts) {
+        runningJobCounts[(int)forApertureOfResolution]++;
+      }
     }
 
     /// <summary>
@@ -188,7 +190,9 @@ namespace Evix.Terrain.Resolution {
     /// </summary>
     /// <param name="jobHandle"></param>
     public void decrementRunningJobCount(Chunk.Resolution forApertureOfResolution) {
-      runningJobCounts[(int)forApertureOfResolution]--;
+      lock (runningJobCounts) {
+        runningJobCounts[(int)forApertureOfResolution]--;
+      }
     }
 
     /// <summary>

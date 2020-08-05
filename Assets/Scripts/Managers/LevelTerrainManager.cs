@@ -420,19 +420,15 @@ namespace Evix.Managers {
 
         LevelTerrainManager terrainManager = target as LevelTerrainManager;
         EditorGUILayout.LabelField("Lens Info:", EditorStyles.boldLabel);
-        EditorGUI.BeginDisabledGroup(true);
         if (terrainManager.level != null) {
           terrainManager.level.forEachFocalLens((lens, focus) => {
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Lens:", $"{lens.GetType().Name} focused on #{focus.id}");
-            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
-            EditorGUILayout.LabelField("Running Jobs Per Aperture:");
-            foreach ((int runningJobCount, string apertureName) in lens.getRunningJobCountPerAperture()) {
-              EditorGUILayout.IntField(apertureName, runningJobCount);
+            EditorGUILayout.LabelField("Lens:", $"{lens.GetType().Name} is focused on focus #{focus.id}");
+            if (GUILayout.Button("Print running aperture job counts")) {
+              PrintRunningApertureJobCounts(lens);
+              EditorGUILayout.Space();
             }
           });
         }
-        EditorGUI.EndDisabledGroup();
 
         EditorGUILayout.LabelField("Manager Info:", EditorStyles.boldLabel);
         if (GUILayout.Button("Print Current Queue Counts")) {
@@ -444,14 +440,26 @@ namespace Evix.Managers {
       /// Print the queue counts for a terrain manager
       /// </summary>
       /// <param name="terrainManager"></param>
-      public static void PrintQueueCounts(LevelTerrainManager terrainManager) {
+      static void PrintQueueCounts(LevelTerrainManager terrainManager) {
         World.Debug.log($"Current Queue Counts:\n ===== \n"
-          + $"\tChunks Waiting For A Free Controller: {terrainManager.chunksWaitingForAFreeController.Count}"
-          + $"\tChunks To Mesh: {terrainManager.chunksToMesh.Count}"
-          + $"\tChunks To Activate: {terrainManager.chunksToActivate.Count}"
-          + $"\tChunks To Deactivate: {terrainManager.chunksToDeactivate.Count}"
+          + $"\tChunks Waiting For A Free Controller: {terrainManager.chunksWaitingForAFreeController.Count}\n"
+          + $"\tChunks To Mesh: {terrainManager.chunksToMesh.Count}\n"
+          + $"\tChunks To Activate: {terrainManager.chunksToActivate.Count}\n"
+          + $"\tChunks To Deactivate: {terrainManager.chunksToDeactivate.Count}\n"
           + $"\tChunks To Demesh: {terrainManager.chunksToDemesh.Count}"
         );
+      }
+
+      /// <summary>
+      /// Print running job counts for each aperture
+      /// </summary>
+      /// <param name="lens"></param>
+      static void PrintRunningApertureJobCounts(IFocusLens lens) {
+        string debugMessage = "Curring running Aperture Jobs:\n ===== \n";
+        foreach ((int runningJobCount, string apertureName) in lens.getRunningJobCountPerAperture()) {
+          debugMessage += $"{apertureName}: {runningJobCount}\n";
+        }
+        World.Debug.log(debugMessage);
       }
     }
     #endregion
