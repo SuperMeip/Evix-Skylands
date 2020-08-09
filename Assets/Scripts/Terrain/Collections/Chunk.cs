@@ -225,7 +225,7 @@ namespace Evix.Terrain.Collections {
         if (isLockedForWork) {
 #if DEBUG
           string warning = $"Attempt to lock chunk for: {adjustmentLockType}, failed, already locked for: {this.adjustmentLockType}";
-          World.Debug.logWarning(warning);
+          //World.Debug.logWarning(warning);
           recordEvent(warning);
 #endif
           return false;
@@ -344,7 +344,7 @@ namespace Evix.Terrain.Collections {
         && currentResolution == Resolution.UnLoaded
       ) {
 #if DEBUG
-        recordEvent($"Setting generated voxel data with {solidVoxelCount} voxels");
+        recordEvent($"++ Setting generated voxel data with {solidVoxelCount} voxels");
 #endif
         if (solidVoxelCount > 0) {
           this.voxels = voxels;
@@ -370,7 +370,7 @@ namespace Evix.Terrain.Collections {
         && adjustmentLockType == (Resolution.Loaded, ChunkResolutionAperture.FocusAdjustmentType.OutOfFocus)
       ) {
 #if DEBUG
-        recordEvent($"clearing voxel data");
+        recordEvent($"-- Clearing voxel data");
 #endif
         LevelDAO.ChunkSaveData saveData = new LevelDAO.ChunkSaveData(voxels, solidVoxelCount);
         voxels = null;
@@ -401,7 +401,7 @@ namespace Evix.Terrain.Collections {
         && (chunkIsDirty || currentResolution == Resolution.Loaded)
       ) {
 #if DEBUG
-        recordEvent($"Setting chunk mesh with {meshData.triangleCount} tris");
+        recordEvent($"++ Setting chunk mesh with {meshData.triangleCount} tris");
 #endif
         currentResolution = Resolution.Meshed;
         this.meshData = meshData;
@@ -426,7 +426,7 @@ namespace Evix.Terrain.Collections {
         && currentResolution == Resolution.Meshed
       ) {
 #if DEBUG
-        recordEvent($"Clearing chunk mesh");
+        recordEvent($"-- Clearing chunk mesh");
 #endif
         currentResolution = Resolution.Loaded;
         meshData = default;
@@ -450,7 +450,7 @@ namespace Evix.Terrain.Collections {
           && currentResolution == Resolution.Meshed
         ) {
 #if DEBUG
-          recordEvent($"Setting chunk visible");
+          recordEvent($"++ Setting chunk visible");
 #endif
           currentResolution = Resolution.Visible;
         } else {
@@ -466,7 +466,7 @@ namespace Evix.Terrain.Collections {
           && currentResolution == Resolution.Visible
         ) {
 #if DEBUG
-          recordEvent($"Setting chunk invisible");
+          recordEvent($"-- Setting chunk invisible");
 #endif
           currentResolution = Resolution.Meshed;
         } else {

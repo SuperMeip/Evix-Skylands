@@ -90,7 +90,7 @@ namespace Evix {
 		public byte this[int x, int y, int z] {
 			get {
 				Chunk chunk = getChunk(Chunk.IDFromWorldLocation(x, y, z));
-				return chunk[x & 0xF, y & 0xF, z & 0xF];
+				return chunk?[x & 0xF, y & 0xF, z & 0xF] ?? 0;
 			}
 
 			set {
